@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-
-const API_URL = 'http://localhost:3000/api/transcripts';
-const TOKEN = 'dummy'; // replace with a real JWT when available
+import { uploadTranscript } from '../api/transcripts';
 
 const InstructorUpload = () => {
   const { user } = useAuth();
@@ -42,28 +40,13 @@ const InstructorUpload = () => {
     setError(null);
     try {
       const rawText = await file.text();
-      const body = {
+      const data = await uploadTranscript({
         courseId: 1,
         instructorId: 1,
         title: title.trim(),
         rawText
-      };
-
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${TOKEN}`
-        },
-        body: JSON.stringify(body)
       });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || `Request failed with ${response.status}`);
-      }
-      const data = await response.json().catch(() => null);
-      setResult(data ? 'Transcript uploaded successfully (id: ' + (data.id ?? 'unknown') + ').' : 'Transcript uploaded successfully.');
+      setResult('Transcript uploaded successfully (id: ' + (data?.id ?? 'unknown') + ').');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
