@@ -1,5 +1,6 @@
 import React, { useState, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   HomeIcon,
   UserIcon,
@@ -25,8 +26,9 @@ const Layout = ({ children }: LayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const navigation: NavigationItem[] = [
+  const baseNavigation: NavigationItem[] = [
     { name: 'Profile', href: '/profile', icon: UserIcon },
     { name: 'Home', href: '/', icon: HomeIcon },
     { name: 'Chat with AI', href: '/chat', icon: ChatBubbleLeftRightIcon },
@@ -34,6 +36,11 @@ const Layout = ({ children }: LayoutProps) => {
     { name: 'Grades', href: '/grades', icon: ChartBarIcon },
     { name: 'FAQ', href: '/faq', icon: QuestionMarkCircleIcon },
   ];
+
+  const navigation: NavigationItem[] =
+    user?.role === 'instructor'
+      ? [...baseNavigation, { name: 'Upload Transcript', href: '/instructor/upload', icon: AcademicCapIcon }]
+      : baseNavigation;
 
   const isActive = (path: string): boolean => {
     if (path === '/' && location.pathname === '/') return true;
@@ -95,7 +102,16 @@ const Layout = ({ children }: LayoutProps) => {
             })}
           </nav>
 
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-gray-200 space-y-2">
+            <button
+              className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+              onClick={() => {
+                logout();
+                navigate('/login');
+              }}
+            >
+              Sign out
+            </button>
             <div className="text-center text-xs text-vt-gray">
               <p>Virginia Tech</p>
               <p className="text-vt-maroon font-medium">2025</p>
