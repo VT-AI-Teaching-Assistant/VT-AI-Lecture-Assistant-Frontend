@@ -44,7 +44,7 @@ const Login = () => {
               <p className="font-semibold mb-1">Demo accounts</p>
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <span>Student</span>
+                  <span>User</span>
                   <code className="bg-gray-50 border rounded px-2 py-0.5">student@vt.edu / learn123</code>
                 </div>
                 <div className="flex items-center justify-between">

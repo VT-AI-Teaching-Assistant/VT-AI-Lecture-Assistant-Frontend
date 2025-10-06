@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { PresenterFactory } from '../presenters';
 
 export type UserRole = 'student' | 'instructor';
 
@@ -26,6 +27,7 @@ const HARD_CODED_USERS: Array<{ email: string; password: string; name: string; r
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const presenter = PresenterFactory.getAuthPresenter();
 
   useEffect(() => {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -40,6 +42,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    try {
+      // Try remote login first
+      const result = await presenter.login(email, password);
+      if (result.success) {
+        const currentUser = await presenter.getCurrentUser();
+        if (currentUser) {
+          const authUser: AuthUser = { 
+            email: currentUser.email, 
+            name: currentUser.name, 
+            role: currentUser.role as UserRole 
+          };
+          setUser(authUser);
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(authUser));
+          return { success: true as const };
+        }
+      }
+    } catch (error) {
+      console.log('Remote login failed, trying local fallback:', error);
+    }
+
+    // Fallback to local hardcoded users
     const found = HARD_CODED_USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (!found || found.password !== password) {
       return { success: false as const, message: 'Invalid email or password' };
@@ -48,12 +71,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(authUser);
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(authUser));
     return { success: true as const };
-  }, []);
+  }, [presenter]);
 
-  const logout = useCallback(() => {
-    setUser(null);
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-  }, []);
+  const logout = useCallback(async () => {
+    try {
+      await presenter.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    }
+  }, [presenter]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, isAuthenticated: Boolean(user), login, logout }),

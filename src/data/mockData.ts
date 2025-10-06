@@ -1,5 +1,5 @@
-// Student Profile Data
-export type StudentProfile = {
+// User Profile Data
+export type UserProfile = {
   id: string;
   name: string;
   email: string;
@@ -15,7 +15,7 @@ export type StudentProfile = {
   };
 };
 
-export const studentProfile: StudentProfile = {
+export const userProfile: UserProfile = {
   id: "123456789",
   name: "Sarah Johnson",
   email: "sarahj@vt.edu",
