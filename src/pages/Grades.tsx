@@ -3,6 +3,7 @@ import {
   ChartBarIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
+import { useCourse } from '../context/CourseContext';
 
 type Score = { points: number; total: number; percentage: number } | null;
 
@@ -19,6 +20,7 @@ type GradeRow = {
 const Grades = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedFilter, setSelectedFilter] = useState<string>('All');
+  const { selectedCourse } = useCourse();
 
   const gradesData: GradeRow[] = [
     {
@@ -123,7 +125,17 @@ const Grades = () => {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="bg-gradient-to-r from-vt-maroon to-vt-orange text-white rounded-lg p-6">
         <h1 className="text-3xl font-bold">Grade Center</h1>
-        <p className="mt-2 opacity-90">Track your academic progress and performance</p>
+        <p className="mt-2 opacity-90">
+          {selectedCourse 
+            ? `Track your academic progress and performance for ${selectedCourse.code} - ${selectedCourse.title}`
+            : 'Track your academic progress and performance'
+          }
+        </p>
+        {selectedCourse && (
+          <div className="mt-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm inline-block">
+            Current Course: {selectedCourse.code}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -1,6 +1,7 @@
 import React, { useState, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCourse } from '../context/CourseContext';
 import {
   HomeIcon,
   UserIcon,
@@ -27,6 +28,7 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { isCourseContextSet, selectedCourse } = useCourse();
 
   const baseNavigation: NavigationItem[] = [
     { name: 'Profile', href: '/profile', icon: UserIcon },
@@ -84,19 +86,31 @@ const Layout = ({ children }: LayoutProps) => {
           <nav className="flex-1 px-4 py-6 space-y-2">
             {navigation.map((item) => {
               const Icon = item.icon;
+              const isDisabled = item.href !== '/profile' && !isCourseContextSet;
+              const isActiveItem = isActive(item.href);
+              
               return (
                 <button
                   key={item.name}
                   onClick={() => {
-                    navigate(item.href);
-                    setIsSidebarOpen(false);
+                    if (!isDisabled) {
+                      navigate(item.href);
+                      setIsSidebarOpen(false);
+                    }
                   }}
+                  disabled={isDisabled}
                   className={`sidebar-item w-full ${
-                    isActive(item.href) ? 'active' : ''
+                    isActiveItem ? 'active' : ''
+                  } ${
+                    isDisabled ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
+                  title={isDisabled ? 'Please set course context first' : ''}
                 >
                   <Icon className="h-5 w-5 mr-3" />
                   {item.name}
+                  {isDisabled && (
+                    <span className="ml-auto text-xs text-gray-400">🔒</span>
+                  )}
                 </button>
               );
             })}
@@ -134,6 +148,11 @@ const Layout = ({ children }: LayoutProps) => {
               <span className="text-white font-bold text-sm">VT</span>
             </div>
             <span className="font-semibold text-gray-900">AI Assistant</span>
+            {isCourseContextSet && selectedCourse && (
+              <div className="ml-4 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                {selectedCourse.code}
+              </div>
+            )}
           </div>
         </div>
 

@@ -7,6 +7,7 @@ import InstructorUpload from './pages/InstructorUpload';
 import { AuthProvider } from './context/AuthContext';
 import { CourseSelectionProvider } from './context/CourseSelectionContext';
 import { UserProfileProvider } from './context/UserProfileContext';
+import { CourseProvider } from './context/CourseContext';
 import Profile from './pages/Profile';
 import Home from './pages/Home';
 import Chat from './pages/Chat';
@@ -28,58 +29,60 @@ function App() {
         <AuthProvider>
           <UserProfileProvider>
             <CourseSelectionProvider>
-              <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/*"
-                element={
-                  <Layout>
-                    <Routes>
-                      <Route path="/" element={
-                        <ProtectedRoute>
-                          <Home />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/profile" element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/chat" element={
-                        <ProtectedRoute>
-                          <Chat />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/lectures" element={
-                        <ProtectedRoute>
-                          <Lectures />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/lectures/:id/notes" element={
-                        <ProtectedRoute>
-                          <LectureNotes />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/grades" element={
-                        <ProtectedRoute>
-                          <Grades />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/faq" element={
-                        <ProtectedRoute>
-                          <FAQ />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/instructor/upload" element={
-                        <ProtectedRoute allow={["instructor"]}>
-                          <InstructorUpload />
-                        </ProtectedRoute>
-                      } />
-                    </Routes>
-                  </Layout>
-                }
-              />
-            </Routes>
+              <CourseProvider>
+                <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/*"
+                  element={
+                    <Layout>
+                      <Routes>
+                        <Route path="/" element={
+                          <ProtectedRoute>
+                            <Home />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/profile" element={
+                          <ProtectedRoute>
+                            <Profile />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/chat" element={
+                          <ProtectedRoute>
+                            <Chat />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/lectures" element={
+                          <ProtectedRoute>
+                            <Lectures />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/lectures/:id/notes" element={
+                          <ProtectedRoute>
+                            <LectureNotes />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/grades" element={
+                          <ProtectedRoute>
+                            <Grades />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/faq" element={
+                          <ProtectedRoute>
+                            <FAQ />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/instructor/upload" element={
+                          <ProtectedRoute allow={["instructor"]}>
+                            <InstructorUpload />
+                          </ProtectedRoute>
+                        } />
+                      </Routes>
+                    </Layout>
+                  }
+                />
+              </Routes>
+              </CourseProvider>
             </CourseSelectionProvider>
           </UserProfileProvider>
         </AuthProvider>

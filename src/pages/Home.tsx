@@ -3,10 +3,12 @@ import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Announcement, Discussion } from '../models';
 import { PresenterFactory } from '../presenters';
 import { useAsyncState, ErrorHandler } from '../utils/errorHandling';
+import { useCourse } from '../context/CourseContext';
 
 const Home = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const { selectedCourse } = useCourse();
   
   const presenter = PresenterFactory.getHomePresenter();
   const announcementsState = useAsyncState<Announcement[]>();
@@ -15,14 +17,14 @@ const Home = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load announcements
+        // Load announcements for the selected course
         announcementsState.setLoading();
-        const announcements = await presenter.loadAnnouncements();
+        const announcements = await presenter.loadAnnouncements(selectedCourse?.id);
         announcementsState.setSuccess(announcements);
 
-        // Load discussions
+        // Load discussions for the selected course
         discussionsState.setLoading();
-        const discussionsResponse = await presenter.loadDiscussions();
+        const discussionsResponse = await presenter.loadDiscussions(selectedCourse?.id);
         discussionsState.setSuccess(discussionsResponse.data);
       } catch (error) {
         announcementsState.setError(ErrorHandler.handle(error));
@@ -30,8 +32,10 @@ const Home = () => {
       }
     };
 
-    loadData();
-  }, []);
+    if (selectedCourse) {
+      loadData();
+    }
+  }, [selectedCourse]);
 
   // Fallback data for development/demo
   const fallbackAnnouncements: Announcement[] = [
@@ -134,7 +138,17 @@ const Home = () => {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="bg-gradient-to-r from-vt-maroon to-vt-orange text-white rounded-lg p-6">
         <h1 className="text-3xl font-bold">Course Dashboard</h1>
-        <p className="mt-2 opacity-90">Stay updated with announcements and join discussions</p>
+        <p className="mt-2 opacity-90">
+          {selectedCourse 
+            ? `Stay updated with announcements and join discussions for ${selectedCourse.code} - ${selectedCourse.title}`
+            : 'Stay updated with announcements and join discussions'
+          }
+        </p>
+        {selectedCourse && (
+          <div className="mt-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm inline-block">
+            Current Course: {selectedCourse.code}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

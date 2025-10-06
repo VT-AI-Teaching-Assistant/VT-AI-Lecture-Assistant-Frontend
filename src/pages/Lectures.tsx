@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchTranscriptSummaries, TranscriptSummary } from '../api/transcripts';
+import { useCourse } from '../context/CourseContext';
+import { useAuth } from '../context/AuthContext';
+import Students from '../components/Students';
 
 type LectureItem = {
   id: number;
@@ -12,29 +15,29 @@ type LectureItem = {
 };
 
 const Lectures = () => {
-  const COURSE_ID = 1; // as per current portal mock course
+  const { selectedCourse } = useCourse();
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'lectures' | 'students'>('lectures');
+  const COURSE_ID = selectedCourse?.id ? parseInt(selectedCourse.id) : 1; // Convert string ID to number or fallback
   const [summaries, setSummaries] = useState<TranscriptSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    fetchTranscriptSummaries(COURSE_ID)
-      .then(setSummaries)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
-      .finally(() => setLoading(false));
-  }, []);
+    if (selectedCourse && activeTab === 'lectures') {
+      setLoading(true);
+      setError(null);
+      fetchTranscriptSummaries(COURSE_ID)
+        .then(setSummaries)
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
+        .finally(() => setLoading(false));
+    }
+  }, [selectedCourse, COURSE_ID, activeTab]);
 
   const total = useMemo(() => summaries?.length ?? 0, [summaries]);
 
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="bg-gradient-to-r from-vt-maroon to-vt-orange text-white rounded-lg p-6">
-        <h1 className="text-3xl font-bold">Course Lectures</h1>
-        <p className="mt-2 opacity-90">Access lecture notes, recordings, and quizzes</p>
-      </div>
-
+  const renderLecturesContent = () => (
+    <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
@@ -81,7 +84,9 @@ const Lectures = () => {
       <div className="bg-white rounded-lg shadow-md">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">All Lectures</h2>
-          <p className="text-gray-600 mt-1">CS 3114 - Data Structures and Algorithms</p>
+          <p className="text-gray-600 mt-1">
+            {selectedCourse ? `${selectedCourse.code} - ${selectedCourse.title}` : 'Course Lectures'}
+          </p>
         </div>
         
         <div className="divide-y divide-gray-200">
@@ -131,6 +136,74 @@ const Lectures = () => {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="bg-gradient-to-r from-vt-maroon to-vt-orange text-white rounded-lg p-6">
+        <h1 className="text-3xl font-bold">Course Management</h1>
+        <p className="mt-2 opacity-90">
+          {selectedCourse 
+            ? `Manage lectures and students for ${selectedCourse.code} - ${selectedCourse.title}`
+            : 'Manage course content and students'
+          }
+        </p>
+        {selectedCourse && (
+          <div className="mt-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm inline-block">
+            Current Course: {selectedCourse.code}
+          </div>
+        )}
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-lg shadow-md">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8 px-6">
+            <button
+              onClick={() => setActiveTab('lectures')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'lectures'
+                  ? 'border-vt-maroon text-vt-maroon'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+                <span>Lectures</span>
+              </div>
+            </button>
+            {user?.role === 'instructor' && (
+              <button
+                onClick={() => setActiveTab('students')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'students'
+                    ? 'border-vt-maroon text-vt-maroon'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  <span>Students</span>
+                </div>
+              </button>
+            )}
+          </nav>
+        </div>
+        
+        <div className="p-6">
+          {activeTab === 'lectures' && renderLecturesContent()}
+          {activeTab === 'students' && user?.role === 'instructor' && <Students />}
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
+import { useCourse } from '../context/CourseContext';
 
 type ChatMessage = {
   id: number;
@@ -15,6 +16,7 @@ const Chat = () => {
   const [showFullChat, setShowFullChat] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const { selectedCourse } = useCourse();
 
   const scrollToBottom = (): void => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -30,16 +32,18 @@ const Chat = () => {
       setIsLoading(false);
       let aiResponse = "";
       const lowerMessage = userMessage.toLowerCase();
+      const courseName = selectedCourse ? `${selectedCourse.code} - ${selectedCourse.title}` : 'your course';
+      
       if (lowerMessage.includes('assignment') || lowerMessage.includes('homework')) {
-        aiResponse = "I'd be happy to help you with your assignment! Could you please provide more details about the specific topic or problem you're working on? For CS 3114, I can assist with data structures, algorithms, complexity analysis, and implementation strategies.";
+        aiResponse = `I'd be happy to help you with your assignment! Could you please provide more details about the specific topic or problem you're working on? For ${courseName}, I can assist with course-specific concepts, implementation strategies, and problem-solving approaches.`;
       } else if (lowerMessage.includes('data structure') || lowerMessage.includes('algorithm')) {
-        aiResponse = "Great question about data structures and algorithms! These are fundamental concepts in computer science. Which specific data structure or algorithm are you interested in learning about? I can explain concepts like arrays, linked lists, trees, graphs, sorting algorithms, searching algorithms, and their time/space complexities.";
+        aiResponse = `Great question about data structures and algorithms! These are fundamental concepts in computer science. Which specific data structure or algorithm are you interested in learning about? I can explain concepts relevant to ${courseName} and their time/space complexities.`;
       } else if (lowerMessage.includes('exam') || lowerMessage.includes('midterm') || lowerMessage.includes('test')) {
-        aiResponse = "I can help you prepare for your exam! For the CS 3114 midterm, you should focus on:\n\n• Basic data structures (arrays, linked lists, stacks, queues)\n• Tree structures and traversals\n• Time and space complexity analysis\n• Algorithm implementation and optimization\n\nWould you like me to create practice problems or explain any specific topics?";
+        aiResponse = `I can help you prepare for your exam! For the ${courseName} exam, you should focus on the key topics covered in your course. Would you like me to create practice problems or explain any specific topics from your course materials?`;
       } else if (lowerMessage.includes('help') || lowerMessage.includes('stuck')) {
-        aiResponse = "I'm here to help! Don't worry about being stuck - that's a normal part of learning. Could you describe what specific concept or problem you're working on? I can break it down into smaller, manageable steps and provide examples to make it clearer.";
+        aiResponse = `I'm here to help! Don't worry about being stuck - that's a normal part of learning. Could you describe what specific concept or problem you're working on? I can break it down into smaller, manageable steps and provide examples to make it clearer.`;
       } else {
-        aiResponse = "Hello! I'm your AI Learning Assistant for CS 3114. I'm here to help you with data structures, algorithms, assignments, exam preparation, and any course-related questions you might have. How can I assist you today?";
+        aiResponse = `Hello! I'm your AI Learning Assistant for ${courseName}. I'm here to help you with course concepts, assignments, exam preparation, and any course-related questions you might have. How can I assist you today?`;
       }
 
       const aiMessage: ChatMessage = {
@@ -93,7 +97,10 @@ const Chat = () => {
               AI Learning Assistant
             </h1>
             <p className="text-xl text-gray-600 leading-relaxed max-w-2xl mx-auto">
-              Your intelligent companion for CS 3114 - Data Structures & Algorithms.
+              {selectedCourse 
+                ? `Your intelligent companion for ${selectedCourse.code} - ${selectedCourse.title}.`
+                : 'Your intelligent learning companion.'
+              }
               <br />
               Get instant help with assignments, concepts, and exam preparation.
             </p>
@@ -180,7 +187,9 @@ const Chat = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">AI Learning Assistant</h1>
-              <p className="text-sm text-gray-500">CS 3114 - Data Structures & Algorithms</p>
+              <p className="text-sm text-gray-500">
+                {selectedCourse ? `${selectedCourse.code} - ${selectedCourse.title}` : 'Course Assistant'}
+              </p>
             </div>
           </div>
           <button

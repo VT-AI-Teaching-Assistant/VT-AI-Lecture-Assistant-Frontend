@@ -7,7 +7,7 @@ type CourseSelectionContextValue = {
   toggleCourseSelection: (course: Course) => void;
   selectCourses: (courses: Course[]) => void;
   clearSelection: () => void;
-  registerSelectedCourses: (instructorId?: number) => Promise<{ success: boolean; message?: string }>;
+  registerSelectedCourses: (instructorId?: number) => Promise<{ success: boolean; message?: string; data?: any }>;
   isRegistering: boolean;
 };
 
@@ -60,7 +60,7 @@ export const CourseSelectionProvider = ({ children }: { children: React.ReactNod
     setSelectedCourses([]);
   }, []);
 
-  const registerSelectedCourses = useCallback(async (instructorId?: number): Promise<{ success: boolean; message?: string }> => {
+  const registerSelectedCourses = useCallback(async (instructorId?: number): Promise<{ success: boolean; message?: string; data?: any }> => {
     if (selectedCourses.length === 0) {
       return { success: false, message: 'No courses selected' };
     }
@@ -92,7 +92,11 @@ export const CourseSelectionProvider = ({ children }: { children: React.ReactNod
       const result = await response.json();
       console.log('Course registration result:', result);
       
-      return { success: true, message: 'Courses registered successfully' };
+      return { 
+        success: true, 
+        message: result.message || 'Courses registered successfully',
+        data: result.data
+      };
     } catch (error) {
       console.error('Error registering courses:', error);
       return { success: false, message: error instanceof Error ? error.message : 'Failed to register courses' };
