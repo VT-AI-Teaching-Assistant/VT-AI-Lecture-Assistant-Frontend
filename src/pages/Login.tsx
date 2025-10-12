@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { apiService } from '../services/ApiService';
 
 const Login = () => {
   const { login, isAuthenticated } = useAuth();
@@ -10,10 +11,19 @@ const Login = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<string>('Unknown');
 
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
+  const testBackendConnection = async () => {
+    try {
+      setBackendStatus('Testing...');
+      const response = await apiService.get('/health');
+      console.log('Backend health check:', response);
+      setBackendStatus('✅ Connected');
+    } catch (error) {
+      console.error('Backend connection failed:', error);
+      setBackendStatus('❌ Failed');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +97,29 @@ const Login = () => {
               {error && (
                 <div className="text-sm text-red-600">{error}</div>
               )}
+              
+              {/* Backend Status */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Backend Status:</span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    backendStatus === '✅ Connected' ? 'bg-green-100 text-green-800' :
+                    backendStatus === '❌ Failed' ? 'bg-red-100 text-red-800' :
+                    backendStatus === 'Testing...' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {backendStatus}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={testBackendConnection}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Test
+                  </button>
+                </div>
+              </div>
+              
               <button
                 type="submit"
                 disabled={isLoading}

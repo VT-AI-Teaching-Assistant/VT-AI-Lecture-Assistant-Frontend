@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useCourse } from '../context/CourseContext';
 import { uploadTranscript } from '../api/transcripts';
 
 const InstructorUpload = () => {
   const { user } = useAuth();
+  const { selectedCourse } = useCourse();
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [rawPreview, setRawPreview] = useState('');
@@ -26,10 +28,30 @@ const InstructorUpload = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate course context
+    if (!selectedCourse) {
+      setError('Please select a course context first from your Profile page');
+      return;
+    }
+    
+    // Validate course ID
+    if (!selectedCourse.course_id) {
+      setError('Course ID is missing. Please reselect your course context from the Profile page.');
+      return;
+    }
+    
+    // Validate user
+    if (!user) {
+      setError('User information not available. Please log in again.');
+      return;
+    }
+    
     if (!file) {
       setError('Please select a .txt file');
       return;
     }
+    
     if (!title.trim()) {
       setError('Please enter a lecture title');
       return;
@@ -40,13 +62,20 @@ const InstructorUpload = () => {
     setError(null);
     try {
       const rawText = await file.text();
+      console.log('InstructorUpload - selectedCourse:', selectedCourse);
+      console.log('InstructorUpload - sending courseId:', selectedCourse.course_id);
+      
+      // instructor_id is now extracted from JWT token on backend
       const data = await uploadTranscript({
-        courseId: 1,
-        instructorId: 1,
+        courseId: selectedCourse.course_id, // Use numeric course_id from selectedCourse
         title: title.trim(),
         rawText
       });
-      setResult('Transcript uploaded successfully (id: ' + (data?.id ?? 'unknown') + ').');
+      setResult(`Transcript uploaded successfully! ID: ${data?.id || 'unknown'}`);
+      // Clear form
+      setTitle('');
+      setFile(null);
+      setRawPreview('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -64,7 +93,13 @@ const InstructorUpload = () => {
       <div className="card">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900">Upload Transcript (.txt)</h2>
-          <p className="text-gray-600 text-sm">Course ID and Instructor ID are set to 1.</p>
+          {selectedCourse ? (
+            <p className="text-gray-600 text-sm">
+              Uploading to: <span className="font-medium text-vt-maroon">{selectedCourse.title}</span>
+            </p>
+          ) : (
+            <p className="text-amber-600 text-sm">⚠️ Please select a course context from your Profile page first.</p>
+          )}
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

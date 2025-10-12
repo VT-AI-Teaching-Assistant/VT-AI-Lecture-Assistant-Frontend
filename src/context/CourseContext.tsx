@@ -1,60 +1,92 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { apiService } from '../services/ApiService';
 
 export type Course = {
   id: string;
+  course_id: number;
+  canvas_id?: number; // Canvas course ID for API calls
   code: string;
   title: string;
-  credits: number;
-  instructorId: string;
-  semester: string;
-  year: number;
+  instructorId?: string;
 };
 
 export type CourseContextValue = {
   selectedCourse: Course | null;
-  availableCourses: Course[];
+  availableCourses: Course[]; // Canvas courses available for registration
+  registeredCourses: Course[]; // Courses already registered in the system
   isCourseContextSet: boolean;
-  setSelectedCourse: (course: Course | null) => void;
+  setSelectedCourse: (course: Course | null) => Promise<void>;
   loadAvailableCourses: () => Promise<void>;
-  clearCourseContext: () => void;
+  loadRegisteredCourses: () => Promise<void>;
+  clearCourseContext: () => Promise<void>;
   isLoading: boolean;
 };
 
 const CourseContext = createContext<CourseContextValue | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY = 'vt-ai-selected-course';
-
 export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedCourse, setSelectedCourseState] = useState<Course | null>(null);
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
+  const [registeredCourses, setRegisteredCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
-  // Load selected course from localStorage on mount
+  // Load course context from backend on mount (when user is authenticated)
   useEffect(() => {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (raw) {
+    const loadCourseContext = async () => {
+      if (!isAuthenticated || !user) return;
+      
+      setIsLoading(true);
       try {
-        const parsed = JSON.parse(raw) as Course;
-        setSelectedCourseState(parsed);
-      } catch {
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        // Fetch last selected course from backend
+        const response = await apiService.get<{ success: boolean; data: { courseId: number; courseName: string } | null }>('/courses/context');
+        
+        if (response.success && response.data) {
+          // Set selected course from backend
+          setSelectedCourseState({
+            id: response.data.courseId.toString(),
+            course_id: response.data.courseId,
+            code: '', // Will be populated when loading available courses
+            title: response.data.courseName,
+          });
+        }
+      } catch (error) {
+        console.error('Error loading course context:', error);
+        // Not a critical error, user can select course manually
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, []);
+    };
 
-  // Save selected course to localStorage whenever it changes
-  useEffect(() => {
-    if (selectedCourse) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(selectedCourse));
-    } else {
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-    }
-  }, [selectedCourse]);
+    loadCourseContext();
+  }, [isAuthenticated, user]);
 
-  const setSelectedCourse = useCallback((course: Course | null) => {
-    setSelectedCourseState(course);
+  const setSelectedCourse = useCallback(async (course: Course | null) => {
+    if (!course) {
+      setSelectedCourseState(null);
+      return;
+    }
+
+    try {
+      console.log('CourseContext - Setting course context:', course);
+      console.log('CourseContext - Sending courseId:', course.course_id);
+      
+      // Save to backend
+      const response = await apiService.post('/courses/context', {
+        courseId: course.course_id
+      });
+      
+      console.log('CourseContext - Backend response:', response);
+      
+      // Update local state
+      setSelectedCourseState(course);
+      console.log('CourseContext - Course context set successfully');
+    } catch (error: any) {
+      console.error('CourseContext - Error setting course context:', error);
+      console.error('CourseContext - Error response:', error.response?.data);
+      throw error;
+    }
   }, []);
 
   const loadAvailableCourses = useCallback(async () => {
@@ -62,20 +94,32 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
     
     setIsLoading(true);
     try {
-      // For instructors, fetch their teaching courses
-      // For students, fetch their enrolled courses
-      const role = user.role;
-      const response = await fetch(`http://localhost:3167/api/user/profile?role=${role}`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      // Fetch user profile with available courses
+      const response = await apiService.get<{ success: boolean; data: any }>('/user/profile');
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data?.enrolledCourses) {
-          setAvailableCourses(data.data.enrolledCourses);
-        }
+      if (response.success && response.data) {
+        const data = response.data;
+        
+        console.log('CourseContext - Raw response data:', data);
+        
+        // Canvas courses available for registration (not yet registered)
+        const availableCanvasCourses = data.canvasEnrollments || [];
+        console.log('CourseContext - availableCanvasCourses:', availableCanvasCourses);
+        
+        const formattedAvailableCourses: Course[] = availableCanvasCourses.map((c: any) => ({
+          id: c.course_id.toString(),
+          course_id: c.course_id,
+          canvas_id: c.course_id,
+          code: c.course_code || '',
+          title: c.course_name || '',
+          instructorId: user.entityId.toString()
+        }));
+        
+        console.log('CourseContext - formattedAvailableCourses:', formattedAvailableCourses);
+        setAvailableCourses(formattedAvailableCourses);
+        
+        // Load registered courses separately
+        await loadRegisteredCourses();
       }
     } catch (error) {
       console.error('Error loading available courses:', error);
@@ -84,10 +128,57 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user]);
 
-  const clearCourseContext = useCallback(() => {
+  const loadRegisteredCourses = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      // Fetch user profile with registered courses
+      const response = await apiService.get<{ success: boolean; data: any }>('/user/profile');
+
+      if (response.success && response.data) {
+        const data = response.data;
+        
+        // Courses already registered in the system
+        const registeredCoursesData = data.registeredCourses || [];
+        console.log('CourseContext - registeredCourses:', registeredCoursesData);
+        
+        const formattedRegisteredCourses: Course[] = registeredCoursesData.map((c: any) => ({
+          id: c.localCourseId?.toString() || c.courseId.toString(),
+          course_id: c.localCourseId || c.courseId, // Use local DB ID
+          canvas_id: parseInt(c.canvasId), // Canvas course ID for API calls
+          code: c.courseCode || '',
+          title: c.courseName || '',
+          instructorId: user.entityId.toString()
+        }));
+        
+        console.log('CourseContext - formattedRegisteredCourses:', formattedRegisteredCourses);
+        setRegisteredCourses(formattedRegisteredCourses);
+        
+        // If we have a selected course ID but no details, populate from registered courses
+        if (selectedCourse && !selectedCourse.code) {
+          const fullCourse = formattedRegisteredCourses.find(c => c.course_id === selectedCourse.course_id);
+          if (fullCourse) {
+            setSelectedCourseState(fullCourse);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading registered courses:', error);
+    }
+  }, [user, selectedCourse]);
+
+  const clearCourseContext = useCallback(async () => {
     setSelectedCourseState(null);
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    // Backend will handle clearing context if needed
   }, []);
+
+  // Load available courses on mount
+  useEffect(() => {
+    if (user) {
+      console.log('CourseContext - Loading available courses on mount');
+      loadAvailableCourses();
+    }
+  }, [user, loadAvailableCourses]);
 
   const isCourseContextSet = Boolean(selectedCourse);
 
@@ -95,13 +186,15 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
     () => ({
       selectedCourse,
       availableCourses,
+      registeredCourses,
       isCourseContextSet,
       setSelectedCourse,
       loadAvailableCourses,
+      loadRegisteredCourses,
       clearCourseContext,
       isLoading,
     }),
-    [selectedCourse, availableCourses, isCourseContextSet, setSelectedCourse, loadAvailableCourses, clearCourseContext, isLoading]
+    [selectedCourse, availableCourses, registeredCourses, isCourseContextSet, setSelectedCourse, loadAvailableCourses, loadRegisteredCourses, clearCourseContext, isLoading]
   );
 
   return <CourseContext.Provider value={value}>{children}</CourseContext.Provider>;

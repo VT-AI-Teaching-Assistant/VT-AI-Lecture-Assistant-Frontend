@@ -18,18 +18,26 @@ const Lectures = () => {
   const { selectedCourse } = useCourse();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'lectures' | 'students'>('lectures');
-  const COURSE_ID = selectedCourse?.id ? parseInt(selectedCourse.id) : 1; // Convert string ID to number or fallback
+  const COURSE_ID = selectedCourse?.course_id || 1; // Use numeric course_id from selectedCourse
   const [summaries, setSummaries] = useState<TranscriptSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (selectedCourse && activeTab === 'lectures') {
+      console.log('Lectures - selectedCourse:', selectedCourse);
+      console.log('Lectures - fetching transcripts for courseId:', COURSE_ID);
       setLoading(true);
       setError(null);
       fetchTranscriptSummaries(COURSE_ID)
-        .then(setSummaries)
-        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
+        .then((data) => {
+          console.log('Lectures - received transcripts:', data);
+          setSummaries(data);
+        })
+        .catch((e) => {
+          console.error('Lectures - error fetching transcripts:', e);
+          setError(e instanceof Error ? e.message : 'Failed to load');
+        })
         .finally(() => setLoading(false));
     }
   }, [selectedCourse, COURSE_ID, activeTab]);

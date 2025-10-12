@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCourse, Course } from '../context/CourseContext';
 import { useCourseSelection } from '../context/CourseSelectionContext';
-import { useUserProfile } from '../context/UserProfileContext';
 
 const CourseRegistration = () => {
   const { user } = useAuth();
-  const { availableCourses, loadAvailableCourses, isLoading } = useCourse();
+  const { availableCourses, registeredCourses, loadAvailableCourses, loadRegisteredCourses, isLoading } = useCourse();
   const { selectedCourses, toggleCourseSelection, registerSelectedCourses, isRegistering } = useCourseSelection();
-  const { getInstructorId } = useUserProfile();
   const [step, setStep] = useState<'select' | 'register' | 'enrolled'>('select');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [enrolledStudents, setEnrolledStudents] = useState<any[]>([]);
@@ -22,13 +20,7 @@ const CourseRegistration = () => {
   }, [user, loadAvailableCourses]);
 
   const handleRegisterCourses = async () => {
-    const instructorId = getInstructorId();
-    if (!instructorId) {
-      setMessage({ type: 'error', text: 'Instructor ID not found. Please refresh and try again.' });
-      return;
-    }
-
-    const result = await registerSelectedCourses(instructorId);
+    const result = await registerSelectedCourses();
     if (result.success) {
       setMessage({ type: 'success', text: result.message || 'Courses registered successfully!' });
       
@@ -38,6 +30,10 @@ const CourseRegistration = () => {
         setTotalEnrolledStudents(result.data.totalEnrolledStudents || 0);
         setSyllabi(result.data.syllabi || []);
       }
+      
+      // Refresh course lists after successful registration
+      await loadAvailableCourses();
+      await loadRegisteredCourses();
       
       setStep('enrolled');
     } else {
@@ -97,7 +93,7 @@ const CourseRegistration = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="font-semibold text-gray-900">{course.title}</h3>
-                          <p className="text-sm text-gray-600">{course.code} • {course.credits} credits</p>
+                          <p className="text-sm text-gray-600">{course.code}</p>
                         </div>
                         <div className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
                           selectedCourses.some(c => c.id === course.id)

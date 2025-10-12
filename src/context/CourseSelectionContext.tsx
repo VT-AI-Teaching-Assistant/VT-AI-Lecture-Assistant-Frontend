@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Course } from '../models';
+import { Course } from './CourseContext';
+import { apiService } from '../services/ApiService';
 
 type CourseSelectionContextValue = {
   selectedCourses: Course[];
@@ -65,45 +66,38 @@ export const CourseSelectionProvider = ({ children }: { children: React.ReactNod
       return { success: false, message: 'No courses selected' };
     }
 
-    if (!instructorId) {
-      return { success: false, message: 'Instructor ID is required' };
-    }
-
     setIsRegistering(true);
     try {
-      console.log('Registering selected courses:', selectedCourses, 'for instructor:', instructorId);
+      console.log('Registering selected courses:', selectedCourses);
       
-      // Send course IDs and instructor ID to backend for registration and course details fetching
+      // Send course IDs to backend (instructor ID is extracted from JWT token)
       const courseIds = selectedCourses.map(course => course.id);
       
-      const response = await fetch('http://localhost:3167/api/courses/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ courseIds, instructor_id: instructorId })
+      const response = await apiService.post<{ success: boolean; data: any; message?: string }>('/courses/register', {
+        courseIds
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('Course registration result:', result);
+      console.log('Course registration result:', response);
       
-      return { 
-        success: true, 
-        message: result.message || 'Courses registered successfully',
-        data: result.data
-      };
-    } catch (error) {
+      if (response.success) {
+        // Clear selected courses after successful registration
+        clearSelection();
+        
+        return { 
+          success: true, 
+          message: response.message || 'Courses registered successfully',
+          data: response.data
+        };
+      } else {
+        return { success: false, message: response.message || 'Registration failed' };
+      }
+    } catch (error: any) {
       console.error('Error registering courses:', error);
-      return { success: false, message: error instanceof Error ? error.message : 'Failed to register courses' };
+      return { success: false, message: error.response?.data?.message || error.message || 'Failed to register courses' };
     } finally {
       setIsRegistering(false);
     }
-  }, [selectedCourses]);
+  }, [selectedCourses, clearSelection]);
 
   const value = useMemo<CourseSelectionContextValue>(
     () => ({

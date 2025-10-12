@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
+import { apiService } from '../services/ApiService';
 
 type Student = {
   student_id: number;
@@ -39,25 +40,19 @@ const Students = () => {
     setError(null);
     
     try {
-      console.log(`Fetching students for course ID: ${selectedCourse.id}`);
-      const response = await fetch(`http://localhost:3167/api/courses/${selectedCourse.id}/students`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const localCourseId = selectedCourse.course_id;
+      console.log(`Fetching students for local course ID: ${localCourseId} (selectedCourse.id: ${selectedCourse.id})`);
+      const response = await apiService.get<{ success: boolean; data: { students: Student[]; enrollments: Enrollment[] }; message?: string }>(`/courses/${localCourseId}/students`);
 
-      console.log(`Response status: ${response.status}`);
+      console.log(`Response:`, response);
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Students API response:', data);
-        setStudents(data.data?.students || []);
-        setEnrollments(data.data?.enrollments || []);
+      if (response.success && response.data) {
+        console.log('Students API response:', response);
+        setStudents(response.data.students || []);
+        setEnrollments(response.data.enrollments || []);
       } else {
-        const errorData = await response.text();
-        console.error(`API Error: ${response.status} - ${errorData}`);
-        throw new Error(`Failed to fetch students: ${response.status} ${response.statusText}`);
+        console.error(`API Error:`, response);
+        throw new Error(`Failed to fetch students: ${response.message || 'Unknown error'}`);
       }
     } catch (err) {
       console.error('Error fetching students:', err);

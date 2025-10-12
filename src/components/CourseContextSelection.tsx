@@ -5,13 +5,13 @@ import { useUserProfile } from '../context/UserProfileContext';
 
 const CourseContextSelection = () => {
   const { user } = useAuth();
-  const { selectedCourse, availableCourses, setSelectedCourse, loadAvailableCourses, isLoading } = useCourse();
+  const { selectedCourse, registeredCourses, setSelectedCourse, loadRegisteredCourses, isLoading } = useCourse();
   const { getInstructorId } = useUserProfile();
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    loadAvailableCourses();
-  }, [loadAvailableCourses]);
+    loadRegisteredCourses();
+  }, [loadRegisteredCourses]);
 
   const handleCourseSelect = (course: Course) => {
     setSelectedCourse(course);
@@ -60,7 +60,7 @@ const CourseContextSelection = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-gray-900">{selectedCourse.title}</p>
-                <p className="text-sm text-gray-600">{selectedCourse.code} • {selectedCourse.credits} credits</p>
+                <p className="text-sm text-gray-600">{selectedCourse.code}</p>
               </div>
               <button
                 onClick={handleClearContext}
@@ -81,7 +81,7 @@ const CourseContextSelection = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-vt-maroon mx-auto"></div>
               <p className="mt-2 text-gray-600">Loading courses...</p>
             </div>
-          ) : availableCourses.length === 0 ? (
+          ) : registeredCourses.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <p>
                 {isInstructor 
@@ -92,7 +92,7 @@ const CourseContextSelection = () => {
             </div>
           ) : (
             <div className="grid gap-4">
-              {availableCourses.map((course) => (
+              {registeredCourses.map((course) => (
                 <div
                   key={course.id}
                   className={`border rounded-lg p-4 cursor-pointer transition-colors ${
@@ -105,8 +105,7 @@ const CourseContextSelection = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-gray-900">{course.title}</h3>
-                      <p className="text-sm text-gray-600">{course.code} • {course.credits} credits</p>
-                      <p className="text-xs text-gray-500">{course.semester} {course.year}</p>
+                      <p className="text-sm text-gray-600">{course.code}</p>
                     </div>
                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
                       selectedCourse?.id === course.id
