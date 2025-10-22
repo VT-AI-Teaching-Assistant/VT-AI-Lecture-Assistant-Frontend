@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { useCourse } from '../context/CourseContext';
 
 type FAQItem = {
   id: number;
@@ -16,6 +17,7 @@ const FAQ = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All Questions');
   const [expandedItems, setExpandedItems] = useState<ExpandedMap>({});
+  const { selectedCourse } = useCourse();
 
   const faqData: FAQItem[] = [
     {
@@ -143,7 +145,17 @@ const FAQ = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="bg-gradient-to-r from-vt-maroon to-vt-orange text-white rounded-lg p-6">
         <h1 className="text-3xl font-bold">Frequently Asked Questions</h1>
-        <p className="mt-2 opacity-90">Find quick answers to common questions about the course</p>
+        <p className="mt-2 opacity-90">
+          {selectedCourse 
+            ? `Find quick answers to common questions about ${selectedCourse.code} - ${selectedCourse.title}`
+            : 'Find quick answers to common questions about the course'
+          }
+        </p>
+        {selectedCourse && (
+          <div className="mt-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm inline-block">
+            Current Course: {selectedCourse.code}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6">

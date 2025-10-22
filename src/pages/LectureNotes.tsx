@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { lectures } from '../data/mockData';
+import { fetchTranscriptText, TranscriptText } from '../api/transcripts';
 import {
   ArrowLeftIcon,
   PrinterIcon,
@@ -13,19 +13,47 @@ type RouteParams = {
   id: string;
 };
 
-type Lecture = typeof lectures[number];
-
 const LectureNotes = () => {
   const { id } = useParams<RouteParams>();
   const navigate = useNavigate();
-  const lecture: Lecture | undefined = lectures.find((l) => l.id === parseInt(id ?? '', 10));
+  const [data, setData] = useState<TranscriptText | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  if (!lecture) {
+  const transcriptId = useMemo(() => parseInt(id ?? '', 10), [id]);
+
+  useEffect(() => {
+    if (!Number.isFinite(transcriptId)) return;
+    setLoading(true);
+    setError(null);
+    fetchTranscriptText(transcriptId)
+      .then(setData)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load transcript'))
+      .finally(() => setLoading(false));
+  }, [transcriptId]);
+
+  if (error) {
     return (
       <div className="max-w-4xl mx-auto text-center py-12">
         <AcademicCapIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Lecture Not Found</h2>
-        <p className="text-gray-600 mb-6">The requested lecture notes could not be found.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to load transcript</h2>
+        <p className="text-gray-600 mb-6">{error}</p>
+        <button
+          onClick={() => navigate('/lectures')}
+          className="btn-primary"
+        >
+          Back to Lectures
+        </button>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="max-w-4xl mx-auto text-center py-12">
+        <AcademicCapIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{loading ? 'Loading…' : 'Lecture Not Found'}</h2>
+        {!loading && <p className="text-gray-600 mb-6">The requested lecture notes could not be found.</p>}
         <button
           onClick={() => navigate('/lectures')}
           className="btn-primary"
@@ -51,7 +79,7 @@ const LectureNotes = () => {
   };
 
   const handleCopyNotes = (): void => {
-    void navigator.clipboard.writeText(lecture.notes);
+    void navigator.clipboard.writeText(data.text);
     // eslint-disable-next-line no-alert
     alert('Notes copied to clipboard!');
   };
@@ -114,21 +142,11 @@ const LectureNotes = () => {
         
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
           <div className="flex-1 mb-4 lg:mb-0">
-            <div className="flex items-center mb-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-vt-maroon text-white mr-3">
-                {lecture.course}
-              </span>
-              <span className="text-sm text-gray-500">{lecture.duration}</span>
-            </div>
-            
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {lecture.title}
+              {data.name}
             </h1>
             
-            <div className="flex items-center text-sm text-gray-600">
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              <span>{formatDate(lecture.date)}</span>
-            </div>
+            <div className="flex items-center text-sm text-gray-600"></div>
           </div>
 
           <div className="flex gap-3">
@@ -154,7 +172,7 @@ const LectureNotes = () => {
       <div className="card print:shadow-none print:border-none">
         <div className="prose prose-gray max-w-none">
           <div className="space-y-2">
-            {formatNotes(lecture.notes)}
+            {formatNotes(data.text)}
           </div>
         </div>
       </div>
