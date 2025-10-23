@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 import { useCourse } from '../context/CourseContext';
 import { qaApiService } from '../api/qa';
+import { formatMarkdown } from '../utils/markdownFormatter';
 
 type ChatMessage = {
   id: number;
@@ -244,7 +245,13 @@ const Chat = () => {
                       ? 'bg-gradient-to-r from-vt-maroon to-red-700 text-white rounded-br-sm' 
                       : 'bg-white border border-gray-200/50 text-gray-900 rounded-bl-sm'
                   }`}>
-                    <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
+                    {message.isUser ? (
+                      <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
+                    ) : (
+                      <div className="leading-relaxed">
+                        {formatMarkdown(message.text)}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center space-x-2 mt-2 px-2">
                     <span className="text-xs text-gray-500">{message.timestamp}</span>

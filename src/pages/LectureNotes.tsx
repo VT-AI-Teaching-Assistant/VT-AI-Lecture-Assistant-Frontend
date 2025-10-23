@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchTranscriptText, TranscriptText } from '../api/transcripts';
+import { formatMarkdown } from '../utils/markdownFormatter';
 import {
   ArrowLeftIcon,
   PrinterIcon,
@@ -84,50 +85,6 @@ const LectureNotes = () => {
     alert('Notes copied to clipboard!');
   };
 
-  const formatNotes = (notes: string) => {
-    return notes
-      .split('\n')
-      .map((line, index) => {
-        if (line.startsWith('### ')) {
-          return <h3 key={index} className="text-lg font-semibold text-gray-900 mt-6 mb-3">{line.slice(4)}</h3>;
-        }
-        if (line.startsWith('## ')) {
-          return <h2 key={index} className="text-xl font-bold text-gray-900 mt-8 mb-4">{line.slice(3)}</h2>;
-        }
-        if (line.startsWith('# ')) {
-          return <h1 key={index} className="text-2xl font-bold text-gray-900 mt-8 mb-6">{line.slice(2)}</h1>;
-        }
-        
-        if (line.startsWith('```')) {
-          return null;
-        }
-        
-        if (line.startsWith('- ')) {
-          return <li key={index} className="ml-4 mb-1">{line.slice(2)}</li>;
-        }
-        
-        if (line.includes('**')) {
-          const parts = line.split(/(\*\*.*?\*\*)/);
-          return (
-            <p key={index} className="mb-3 leading-relaxed">
-              {parts.map((part, partIndex) => 
-                part.startsWith('**') && part.endsWith('**') ? (
-                  <strong key={partIndex} className="font-semibold">{part.slice(2, -2)}</strong>
-                ) : (
-                  <span key={partIndex}>{part}</span>
-                )
-              )}
-            </p>
-          );
-        }
-        
-        if (line.trim() === '') {
-          return <div key={index} className="mb-2" />;
-        }
-        
-        return <p key={index} className="mb-3 leading-relaxed">{line}</p>;
-      });
-  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -172,7 +129,7 @@ const LectureNotes = () => {
       <div className="card print:shadow-none print:border-none">
         <div className="prose prose-gray max-w-none">
           <div className="space-y-2">
-            {formatNotes(data.text)}
+            {formatMarkdown(data.text)}
           </div>
         </div>
       </div>
