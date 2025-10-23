@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
+import OAuthCallback from './pages/OAuthCallback';
 import InstructorUpload from './pages/InstructorUpload';
 import { AuthProvider } from './context/AuthContext';
 import { CourseSelectionProvider } from './context/CourseSelectionContext';
@@ -32,6 +33,7 @@ function App() {
               <CourseProvider>
                 <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/auth/callback" element={<OAuthCallback />} />
                 <Route
                   path="/*"
                   element={
