@@ -36,16 +36,21 @@ export interface Course {
 }
 
 export interface Announcement {
-  id: string;
+  announcementId: number;
+  courseId: number;
   title: string;
   content: string;
-  authorId: string;
-  authorName: string;
-  courseId?: string;
-  priority: 'high' | 'medium' | 'low';
-  isPinned: boolean;
+  status: string;
+  canvasAnnouncementId: number;
+  postedAt: string;
   createdAt: string;
-  updatedAt: string;
+  // Legacy fields for UI compatibility
+  id?: string;
+  authorId?: string;
+  authorName?: string;
+  priority?: 'high' | 'medium' | 'low';
+  isPinned?: boolean;
+  updatedAt?: string;
 }
 
 export interface Discussion {
