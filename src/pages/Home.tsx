@@ -16,17 +16,21 @@ const Home = () => {
 
   useEffect(() => {
     const loadData = async () => {
+      if (!selectedCourse?.id) return;
+      
       try {
         // Load announcements for the selected course
         announcementsState.setLoading();
-        const announcements = await presenter.loadAnnouncements(selectedCourse?.id);
+        const announcements = await presenter.loadAnnouncements(selectedCourse.id.toString());
+        console.log('Loaded announcements:', announcements);
         announcementsState.setSuccess(announcements);
 
         // Load discussions for the selected course
         discussionsState.setLoading();
-        const discussionsResponse = await presenter.loadDiscussions(selectedCourse?.id);
+        const discussionsResponse = await presenter.loadDiscussions(selectedCourse.id.toString());
         discussionsState.setSuccess(discussionsResponse.data);
       } catch (error) {
+        console.error('Error loading data:', error);
         announcementsState.setError(ErrorHandler.handle(error));
         discussionsState.setError(ErrorHandler.handle(error));
       }
@@ -40,39 +44,51 @@ const Home = () => {
   // Fallback data for development/demo
   const fallbackAnnouncements: Announcement[] = [
     {
-      id: "1",
+      announcementId: 1,
+      courseId: 1,
       title: "Midterm Exam Schedule Updated",
       content: "The midterm exam for CS 3114 has been moved to March 15th. Please make note of this change and prepare accordingly.",
+      status: "published",
+      canvasAnnouncementId: 10001,
+      postedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      id: "1",
       authorId: "instructor1",
       authorName: "Dr. Smith",
-      courseId: "cs3114",
       priority: "high",
       isPinned: true,
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
     },
     {
-      id: "2",
+      announcementId: 2,
+      courseId: 1,
       title: "Office Hours Extension",
       content: "I will be extending office hours this week due to the upcoming assignment deadline. Available Monday-Wednesday 2-5 PM.",
+      status: "published",
+      canvasAnnouncementId: 10002,
+      postedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      id: "2",
       authorId: "instructor2",
       authorName: "Prof. Johnson",
-      courseId: "cs3704",
       priority: "medium",
       isPinned: false,
-      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
       updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     },
     {
-      id: "3",
+      announcementId: 3,
+      courseId: 1,
       title: "Guest Lecture Tomorrow",
       content: "Don't miss tomorrow's guest lecture on Machine Learning Applications in Industry by Dr. Chen from Google.",
+      status: "published",
+      canvasAnnouncementId: 10003,
+      postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      id: "3",
       authorId: "instructor3",
       authorName: "Dr. Wilson",
-      courseId: "cs3114",
       priority: "low",
       isPinned: false,
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
       updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
     }
   ];
@@ -125,13 +141,18 @@ const Home = () => {
   const announcements = announcementsState.data || fallbackAnnouncements;
   const discussions = discussionsState.data || fallbackDiscussions;
 
-  const getPriorityBorderColor = (priority: Announcement['priority']): string => {
-    switch (priority) {
-      case 'high': return 'border-l-red-500 bg-red-50';
-      case 'medium': return 'border-l-yellow-500 bg-yellow-50';
-      case 'low': return 'border-l-blue-500 bg-blue-50';
-      default: return 'border-l-gray-500 bg-gray-50';
+  const getPriorityBorderColor = (announcement: Announcement): string => {
+    // If legacy priority field exists, use it
+    if (announcement.priority) {
+      switch (announcement.priority) {
+        case 'high': return 'border-l-red-500 bg-red-50';
+        case 'medium': return 'border-l-yellow-500 bg-yellow-50';
+        case 'low': return 'border-l-blue-500 bg-blue-50';
+        default: return 'border-l-gray-500 bg-gray-50';
+      }
     }
+    // Default for Canvas announcements
+    return 'border-l-vt-maroon bg-orange-50';
   };
 
   return (
@@ -176,7 +197,7 @@ const Home = () => {
               </div>
             ) : (
               announcements.map((announcement) => (
-                <div key={announcement.id} className={`border-l-4 p-4 rounded-r-lg transition-all duration-200 hover:shadow-md ${getPriorityBorderColor(announcement.priority)}`}>
+                <div key={announcement.announcementId || announcement.id} className={`border-l-4 p-4 rounded-r-lg transition-all duration-200 hover:shadow-md ${getPriorityBorderColor(announcement)}`}>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
@@ -188,15 +209,18 @@ const Home = () => {
                         )}
                         <h3 className="font-semibold text-gray-900">{announcement.title}</h3>
                       </div>
-                      <p className="text-gray-700 text-sm mb-2">{announcement.content}</p>
+                      <div 
+                        className="text-gray-700 text-sm mb-2" 
+                        dangerouslySetInnerHTML={{ __html: announcement.content }}
+                      />
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
-                        <span>By {announcement.authorName}</span>
+                        {announcement.authorName && <span>By {announcement.authorName}</span>}
                         <span className="flex items-center">
                           <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                             <circle cx="12" cy="12" r="10"></circle>
                             <polyline points="12 6 12 12 16 14"></polyline>
                           </svg>
-                          {new Date(announcement.createdAt).toLocaleDateString()}
+                          {new Date(announcement.postedAt || announcement.createdAt).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
