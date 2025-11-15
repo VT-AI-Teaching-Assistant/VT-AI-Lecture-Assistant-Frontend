@@ -62,4 +62,53 @@
       transform: translateX(0);
     }
   }
+}
+
+/* Markdown content styling */
+.markdown-content {
+  @apply leading-relaxed;
+}
+
+.markdown-content pre {
+  @apply overflow-x-auto;
+}
+
+.markdown-content pre code {
+  @apply block whitespace-pre;
+  word-wrap: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.markdown-content code {
+  @apply inline-block;
+  font-variant-ligatures: none;
+  font-feature-settings: normal;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  @apply my-3;
+}
+
+.markdown-content li {
+  @apply my-1;
+}
+
+.markdown-content p {
+  @apply my-2;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  @apply font-semibold;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-content h1:first-child,
+.markdown-content h2:first-child,
+.markdown-content h3:first-child {
+  margin-top: 0;
 } 
