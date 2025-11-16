@@ -248,7 +248,7 @@ const Chat = () => {
                     {message.isUser ? (
                       <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
                     ) : (
-                      <div className="leading-relaxed">
+                      <div className="markdown-content leading-relaxed">
                         {formatMarkdown(message.text)}
                       </div>
                     )}
