@@ -32,7 +32,7 @@ const Login = () => {
     const res = await login(email.trim(), password);
     setIsLoading(false);
     if (res.success) {
-      navigate('/');
+      navigate('/home');
     } else {
       setError(res.message);
     }

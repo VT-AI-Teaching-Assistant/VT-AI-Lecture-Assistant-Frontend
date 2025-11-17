@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
+import Landing from './pages/Landing';
 import InstructorUpload from './pages/InstructorUpload';
 import { AuthProvider } from './context/AuthContext';
 import { CourseSelectionProvider } from './context/CourseSelectionContext';
@@ -31,13 +32,14 @@ function App() {
             <CourseSelectionProvider>
               <CourseProvider>
                 <Routes>
+                <Route path="/" element={<Landing />} />
                 <Route path="/login" element={<Login />} />
                 <Route
                   path="/*"
                   element={
                     <Layout>
                       <Routes>
-                        <Route path="/" element={
+                        <Route path="/home" element={
                           <ProtectedRoute>
                             <Home />
                           </ProtectedRoute>

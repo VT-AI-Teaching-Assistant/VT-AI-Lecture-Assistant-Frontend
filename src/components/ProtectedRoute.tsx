@@ -33,7 +33,7 @@ const ProtectedRoute = ({ children, allow }: ProtectedRouteProps) => {
   // Check role-based access
   if (allow && user && !allow.includes(user.role)) {
     // If role not allowed, redirect based on user role
-    return <Navigate to={user.role === 'instructor' ? '/profile' : '/'} replace />;
+    return <Navigate to={user.role === 'instructor' ? '/profile' : '/home'} replace />;
   }
   
   // Allow profile page access always (needed for course registration/context)
