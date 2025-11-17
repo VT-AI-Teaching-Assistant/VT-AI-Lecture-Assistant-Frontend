@@ -31,6 +31,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Development mode: Auto-login with mock instructor (bypass backend)
+  const DEV_INSTRUCTOR: AuthUser = {
+    id: 'dev-instructor-1',
+    email: 'instructor@vt.edu',
+    name: 'Dev Instructor',
+    role: 'instructor',
+    entityId: 1,
+    isFirstTime: false,
+    hasRegisteredCourses: true
+  };
+
   const refreshUserInfo = useCallback(async () => {
     try {
       const response = await apiService.get<{ success: boolean; data: any }>('/auth/me');
@@ -65,6 +76,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        // DEVELOPMENT MODE: Auto-login with mock user (bypass backend)
+        // Enable by setting REACT_APP_DEV_MODE=true or localStorage.setItem('dev-mode', 'true')
+        const ENABLE_DEV_MODE = process.env.REACT_APP_DEV_MODE === 'true' || localStorage.getItem('dev-mode') === 'true';
+        
+        if (ENABLE_DEV_MODE) {
+          console.log('🔧 Development mode enabled - Auto-logging in as instructor');
+          setUser(DEV_INSTRUCTOR);
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ 
+            id: DEV_INSTRUCTOR.id, 
+            email: DEV_INSTRUCTOR.email, 
+            role: DEV_INSTRUCTOR.role 
+          }));
+          // Set a dummy token for dev mode so API calls include Authorization header
+          // Note: Backend needs to accept this or you'll still get 403 if backend requires real auth
+          apiService.setToken('dev-mode-token');
+          setIsLoading(false);
+          return;
+        }
+
         // Check if we have a minimal user info in localStorage
         const savedUser = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (savedUser) {
