@@ -273,9 +273,12 @@ export const formatMarkdown = (text: string): React.ReactNode[] => {
  * Process markdown text content (everything except code blocks)
  * 
  * HANDLES:
- * - Headers (# ## ###)
+ * - Headers (# ## ### #### ##### ######)
  * - Ordered lists (1. 2. 3.)
  * - Unordered lists (- *)
+ * - Tables (pipe-delimited)
+ * - Blockquotes (>)
+ * - Horizontal rules (---, ***, ___)
  * - Paragraphs
  * - Empty lines (for spacing)
  * 
@@ -294,6 +297,7 @@ const processMarkdownText = (text: string, keyPrefix: string): React.ReactNode[]
   let currentList: React.ReactNode[] = [];
   let listType: 'ordered' | 'unordered' | null = null;
   let listCounter = 1;
+  let currentBlockquote: React.ReactNode[] = [];
 
   /**
    * Flushes the current list (if any) to the elements array
@@ -324,41 +328,213 @@ const processMarkdownText = (text: string, keyPrefix: string): React.ReactNode[]
     }
   };
 
-  lines.forEach((line, index) => {
-    const lineKey = `${keyPrefix}-line-${index}`;
+  /**
+   * Flushes the current blockquote (if any) to the elements array
+   */
+  const flushBlockquote = () => {
+    if (currentBlockquote.length > 0) {
+      elements.push(
+        <blockquote key={`${keyPrefix}-blockquote-${elements.length}`} className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700 bg-gray-50 py-2 rounded-r">
+          {currentBlockquote}
+        </blockquote>
+      );
+      currentBlockquote = [];
+    }
+  };
 
-    // Handle headers (###, ##, #)
-    // Headers support inline markdown (bold, italic) in their text
-    // FIX: Added proper spacing (mt-6, mb-3) to prevent cramped appearance
-    if (line.startsWith('### ')) {
+  // Parse tables first (multi-line pattern)
+  const tableRegex = /^\|.+\|$/;
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const lineKey = `${keyPrefix}-line-${i}`;
+
+    // Handle tables (pipe-delimited with header and separator)
+    if (tableRegex.test(line.trim())) {
       flushList();
-      const headerText = processInlineMarkdown(line.slice(4));
+      flushBlockquote();
+
+      const tableRows: string[] = [];
+      let separatorIndex = -1;
+      let tableStart = i;
+
+      // Collect all table rows
+      while (i < lines.length && tableRegex.test(lines[i].trim())) {
+        const row = lines[i].trim();
+        tableRows.push(row);
+
+        // Check if this is a separator row (contains ---, ===, or :--:)
+        if (row.match(/^\|[\s\-\|:]+\|$/)) {
+          separatorIndex = tableRows.length - 1;
+        }
+        i++;
+      }
+
+      // Only render as table if we have at least a header and separator
+      if (separatorIndex > 0 && tableRows.length > separatorIndex) {
+        const headerRow = tableRows[0];
+        const dataRows = tableRows.slice(separatorIndex + 1);
+
+        // Parse header cells (split by | and filter out empty cells from edges)
+        const headerCells = headerRow.split('|').map(cell => cell.trim()).filter((cell, idx, arr) => {
+          // Filter out first and last empty strings that come from leading/trailing |
+          if (idx === 0 || idx === arr.length - 1) return cell !== '';
+          return true;
+        });
+
+        // Parse data rows
+        const tableData = dataRows.map(row => {
+          const cells = row.split('|').map(cell => cell.trim());
+          // Filter out first and last empty strings
+          if (cells.length > 0 && cells[0] === '') cells.shift();
+          if (cells.length > 0 && cells[cells.length - 1] === '') cells.pop();
+          return cells;
+        });
+
+        elements.push(
+          <div key={`${keyPrefix}-table-${elements.length}`} className="my-4 overflow-x-auto">
+            <table className="min-w-full border-collapse border border-gray-300 rounded-lg">
+              <thead>
+                <tr className="bg-gray-100">
+                  {headerCells.map((cell, idx) => (
+                    <th key={idx} className="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-900">
+                      {processInlineMarkdown(cell)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.map((row, rowIdx) => (
+                  <tr key={rowIdx} className="hover:bg-gray-50">
+                    {headerCells.map((_, colIdx) => (
+                      <td key={colIdx} className="border border-gray-300 px-4 py-2 text-gray-800">
+                        {processInlineMarkdown(row[colIdx] || '')}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        continue; // Move to next line after table
+      } else {
+        // Not a valid table, treat lines as regular paragraphs
+        // Process from tableStart onwards as regular text
+        for (let j = tableStart; j < i; j++) {
+          const regularLine = lines[j];
+          const regularKey = `${keyPrefix}-line-${j}`;
+          flushList();
+          const processedLine = processInlineMarkdown(regularLine);
+          elements.push(
+            <p key={regularKey} className="mb-3 leading-relaxed text-gray-800 last:mb-0">
+              {processedLine}
+            </p>
+          );
+        }
+        continue;
+      }
+    }
+
+    // Handle horizontal rules (---, ***, ___)
+    if (/^(---|\*\*\*|___)\s*$/.test(line.trim())) {
+      flushList();
+      flushBlockquote();
+      elements.push(
+        <hr key={lineKey} className="my-6 border-t border-gray-300" />
+      );
+      i++;
+      continue;
+    }
+
+    // Handle blockquotes (>)
+    if (line.trim().startsWith('>')) {
+      flushList();
+      const blockquoteContent = line.trim().slice(1).trim();
+      if (blockquoteContent) {
+        const processedContent = processInlineMarkdown(blockquoteContent);
+        currentBlockquote.push(
+          <div key={lineKey} className="mb-2">
+            {processedContent}
+          </div>
+        );
+      }
+      i++;
+      continue;
+    }
+
+    // If we're not in a blockquote anymore, flush it
+    if (currentBlockquote.length > 0 && !line.trim().startsWith('>')) {
+      flushBlockquote();
+    }
+
+    // Handle headers (######, #####, ####, ###, ##, #)
+    // Headers support inline markdown (bold, italic, links) in their text
+    if (line.match(/^#{6}\s/)) {
+      flushList();
+      const headerText = processInlineMarkdown(line.replace(/^#{6}\s/, ''));
+      elements.push(
+        <h6 key={lineKey} className="text-sm font-semibold text-gray-900 mt-6 mb-2 first:mt-0">
+          {headerText}
+        </h6>
+      );
+      i++;
+      continue;
+    }
+    if (line.match(/^#{5}\s/)) {
+      flushList();
+      const headerText = processInlineMarkdown(line.replace(/^#{5}\s/, ''));
+      elements.push(
+        <h5 key={lineKey} className="text-base font-semibold text-gray-900 mt-6 mb-2 first:mt-0">
+          {headerText}
+        </h5>
+      );
+      i++;
+      continue;
+    }
+    if (line.match(/^#{4}\s/)) {
+      flushList();
+      const headerText = processInlineMarkdown(line.replace(/^#{4}\s/, ''));
+      elements.push(
+        <h4 key={lineKey} className="text-base font-semibold text-gray-900 mt-6 mb-2 first:mt-0">
+          {headerText}
+        </h4>
+      );
+      i++;
+      continue;
+    }
+    if (line.match(/^###\s/)) {
+      flushList();
+      const headerText = processInlineMarkdown(line.replace(/^###\s/, ''));
       elements.push(
         <h3 key={lineKey} className="text-lg font-semibold text-gray-900 mt-6 mb-3 first:mt-0">
           {headerText}
         </h3>
       );
-      return;
+      i++;
+      continue;
     }
-    if (line.startsWith('## ')) {
+    if (line.match(/^##\s/)) {
       flushList();
-      const headerText = processInlineMarkdown(line.slice(3));
+      const headerText = processInlineMarkdown(line.replace(/^##\s/, ''));
       elements.push(
         <h2 key={lineKey} className="text-xl font-bold text-gray-900 mt-6 mb-3 first:mt-0">
           {headerText}
         </h2>
       );
-      return;
+      i++;
+      continue;
     }
-    if (line.startsWith('# ')) {
+    if (line.match(/^#\s/)) {
       flushList();
-      const headerText = processInlineMarkdown(line.slice(2));
+      const headerText = processInlineMarkdown(line.replace(/^#\s/, ''));
       elements.push(
         <h1 key={lineKey} className="text-2xl font-bold text-gray-900 mt-6 mb-4 first:mt-0">
           {headerText}
         </h1>
       );
-      return;
+      i++;
+      continue;
     }
 
     // Handle unordered lists (- or *)
@@ -375,7 +551,8 @@ const processMarkdownText = (text: string, keyPrefix: string): React.ReactNode[]
           {listItemContent}
         </li>
       );
-      return;
+      i++;
+      continue;
     }
 
     // Handle ordered lists (1. 2. 3.)
@@ -392,18 +569,21 @@ const processMarkdownText = (text: string, keyPrefix: string): React.ReactNode[]
           {listItemContent}
         </li>
       );
-      return;
+      i++;
+      continue;
     }
 
     // Handle empty lines (for spacing between paragraphs)
     // FIX: Only adds spacing if there's content before it (prevents extra whitespace at start)
     if (line.trim() === '') {
       flushList();
+      flushBlockquote();
       // Only add spacing if there's content before and after
       if (elements.length > 0) {
         elements.push(<div key={lineKey} className="h-2" />);
       }
-      return;
+      i++;
+      continue;
     }
 
     // Handle regular paragraphs with inline markdown
@@ -415,36 +595,44 @@ const processMarkdownText = (text: string, keyPrefix: string): React.ReactNode[]
         {processedLine}
       </p>
     );
-  });
+    i++;
+  }
 
-  // Flush any remaining list
+  // Flush any remaining list or blockquote
   flushList();
+  flushBlockquote();
 
   return elements.filter(Boolean);
 };
 
 /**
- * Process inline markdown elements (bold, italic, inline code)
+ * Process inline markdown elements (bold, italic, inline code, links, images, strikethrough)
  * 
- * NEW FEATURE: Inline code support
- * - Before: No support for inline code with backticks (e.g., `const x = 5`)
- * - After: Detects backticks and renders inline code with proper styling
+ * SUPPORTS:
+ * - Inline code: `code`
+ * - Bold: **text** or __text__
+ * - Italic: *text* or _text_
+ * - Strikethrough: ~~text~~
+ * - Links: [text](url) or [text](url "title")
+ * - Images: ![alt](url) or ![alt](url "title")
  * 
  * Processing order:
- * 1. First, extract all inline code blocks (they take priority)
- * 2. Then process bold/italic in the remaining text
- * 3. This prevents conflicts (e.g., bold markers inside code)
+ * 1. First, extract all inline code blocks (they take priority - no formatting inside)
+ * 2. Then extract images (before links to avoid conflicts)
+ * 3. Then extract links
+ * 4. Then process bold/italic/strikethrough in the remaining text
+ * 5. This prevents conflicts (e.g., bold markers inside code or links)
  * 
  * @param text - Text that may contain inline markdown
- * @returns Array of React elements (text nodes, code elements, strong, em)
+ * @returns Array of React elements (text nodes, code elements, strong, em, a, img, del)
  */
 const processInlineMarkdown = (text: string): React.ReactNode[] => {
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let keyCounter = 0;
 
-  // STEP 1: Find all inline code blocks (backticks)
-  // Process these first because code blocks should not contain markdown formatting
+  // STEP 1: Find all inline code blocks (backticks) - highest priority
+  // Process these first because code blocks should not contain any markdown formatting
   const codeRegex = /`([^`]+)`/g;
   const codeMatches: Array<{ start: number; end: number; content: string }> = [];
   let match;
@@ -453,26 +641,20 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
     codeMatches.push({
       start: match.index,
       end: match.index + match[0].length,
-      content: match[1] // The code content without backticks
+      content: match[1]
     });
   }
 
-  // If no inline code found, just process bold/italic
-  if (codeMatches.length === 0) {
-    return processBoldItalic(text);
-  }
-
-  // STEP 2: Split text by inline code blocks and process each part
+  // Split text by inline code blocks
   let lastIndex = 0;
   codeMatches.forEach((codeMatch) => {
-    // Add text before code (process bold/italic in this text)
+    // Add text before code (process other markdown in this text)
     if (codeMatch.start > lastIndex) {
       const beforeCode = text.substring(lastIndex, codeMatch.start);
-      parts.push(...processBoldItalic(beforeCode));
+      parts.push(...processLinksAndImages(beforeCode));
     }
 
     // Add inline code with proper styling
-    // FIX: Added proper styling with gray background, monospace font, and padding
     parts.push(
       <code
         key={`inline-code-${keyCounter++}`}
@@ -488,83 +670,221 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
     lastIndex = codeMatch.end;
   });
 
-  // Add remaining text after last code (process bold/italic)
+  // Add remaining text after last code
   if (lastIndex < text.length) {
     const afterCode = text.substring(lastIndex);
-    parts.push(...processBoldItalic(afterCode));
+    parts.push(...processLinksAndImages(afterCode));
   }
 
   return parts;
 };
 
 /**
- * Process bold and italic markdown
+ * Process links and images in text (before bold/italic processing)
  * 
- * Handles:
- * - Bold text: **text** becomes <strong>
- * - Italic text: *text* becomes <em>
- * 
- * Note: This function is called after inline code is processed,
- * so it won't conflict with code blocks
- * 
- * @param text - Text that may contain bold/italic markers
- * @returns Array of React elements
+ * Links: [text](url) or [text](url "title")
+ * Images: ![alt](url) or ![alt](url "title")
  */
-const processBoldItalic = (text: string): React.ReactNode[] => {
+const processLinksAndImages = (text: string): React.ReactNode[] => {
   const parts: React.ReactNode[] = [];
-  let remaining = text;
   let keyCounter = 0;
 
-  // Process bold (**text**) and italic (*text*)
-  // Regex matches: **bold** or *italic* (but not code backticks, which are already processed)
-  const boldItalicRegex = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)/g;
-  const matches: Array<{ start: number; end: number; type: 'bold' | 'italic'; content: string }> = [];
-  let match;
+  // Find images first (before links to avoid conflicts)
+  // Pattern: ![alt](url) or ![alt](url "title")
+  const imageRegex = /!\[([^\]]*)\]\(([^)]+)(?:\s+"([^"]+)")?\)/g;
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)(?:\s+"([^"]+)")?\)/g;
 
-  while ((match = boldItalicRegex.exec(text)) !== null) {
-    if (match[1]) {
-      // Bold match
-      matches.push({
+  const allMatches: Array<{ start: number; end: number; type: 'image' | 'link'; alt: string; url: string; title?: string }> = [];
+  let match: RegExpExecArray | null;
+
+  // Collect images
+  while ((match = imageRegex.exec(text)) !== null) {
+    allMatches.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      type: 'image',
+      alt: match[1],
+      url: match[2],
+      title: match[3]
+    });
+  }
+
+  // Collect links (only if not inside an image)
+  linkRegex.lastIndex = 0;
+  while ((match = linkRegex.exec(text)) !== null) {
+    // Check if this link is inside an already matched image
+    const isInsideImage = allMatches.some(img =>
+      match!.index >= img.start && match!.index < img.end
+    );
+    if (!isInsideImage) {
+      allMatches.push({
         start: match.index,
-        end: match.index + match[1].length,
-        type: 'bold',
-        content: match[2]
-      });
-    } else if (match[3]) {
-      // Italic match
-      matches.push({
-        start: match.index,
-        end: match.index + match[3].length,
-        type: 'italic',
-        content: match[4]
+        end: match.index + match[0].length,
+        type: 'link',
+        alt: match[1],
+        url: match[2],
+        title: match[3]
       });
     }
   }
 
-  if (matches.length === 0) {
+  // Sort matches by position
+  allMatches.sort((a, b) => a.start - b.start);
+
+  if (allMatches.length === 0) {
+    return processBoldItalicStrikethrough(text);
+  }
+
+  // Split text by matches and process each part
+  let lastIndex = 0;
+  allMatches.forEach((match) => {
+    // Add text before match (process bold/italic/strikethrough)
+    if (match.start > lastIndex) {
+      const beforeMatch = text.substring(lastIndex, match.start);
+      parts.push(...processBoldItalicStrikethrough(beforeMatch));
+    }
+
+    // Add image or link
+    if (match.type === 'image') {
+      parts.push(
+        <img
+          key={`image-${keyCounter++}`}
+          src={match.url}
+          alt={match.alt}
+          title={match.title}
+          className="max-w-full h-auto rounded-lg my-2 border border-gray-300"
+          style={{ display: 'block', margin: '0.5rem 0' }}
+        />
+      );
+    } else {
+      parts.push(
+        <a
+          key={`link-${keyCounter++}`}
+          href={match.url}
+          title={match.title}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-vt-maroon hover:text-red-800 underline font-medium"
+        >
+          {processBoldItalicStrikethrough(match.alt)}
+        </a>
+      );
+    }
+
+    lastIndex = match.end;
+  });
+
+  // Add remaining text after last match
+  if (lastIndex < text.length) {
+    const afterMatch = text.substring(lastIndex);
+    parts.push(...processBoldItalicStrikethrough(afterMatch));
+  }
+
+  return parts;
+};
+
+/**
+ * Process bold, italic, and strikethrough markdown
+ * 
+ * Handles:
+ * - Bold text: **text** or __text__ becomes <strong>
+ * - Italic text: *text* or _text_ becomes <em>
+ * - Strikethrough: ~~text~~ becomes <del>
+ * 
+ * Note: This function is called after inline code, links, and images are processed,
+ * so it won't conflict with those elements
+ * 
+ * @param text - Text that may contain bold/italic/strikethrough markers
+ * @returns Array of React elements
+ */
+const processBoldItalicStrikethrough = (text: string): React.ReactNode[] => {
+  const parts: React.ReactNode[] = [];
+  let keyCounter = 0;
+
+  // Process strikethrough (~~text~~), bold (**text** or __text__), and italic (*text* or _text_)
+  // Order: strikethrough first, then bold, then italic
+  // Regex matches: ~~strike~~, **bold** or __bold__, *italic* or _italic_
+  const markdownRegex = /(~~([^~]+)~~)|(\*\*([^*]+)\*\*)|(__([^_]+)__)|(\*([^*]+)\*)|(_([^_]+)_)/g;
+  const matches: Array<{ start: number; end: number; type: 'bold' | 'italic' | 'strikethrough'; content: string }> = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = markdownRegex.exec(text)) !== null) {
+    if (match[1]) {
+      // Strikethrough match (~~text~~)
+      matches.push({
+        start: match.index,
+        end: match.index + match[1].length,
+        type: 'strikethrough',
+        content: match[2]
+      });
+    } else if (match[3] || match[5]) {
+      // Bold match (**text** or __text__)
+      matches.push({
+        start: match.index,
+        end: match.index + (match[3] ? match[3].length : match[5].length),
+        type: 'bold',
+        content: match[4] || match[6]
+      });
+    } else if (match[7] || match[9]) {
+      // Italic match (*text* or _text_) - but only if not part of bold
+      // Check if this single asterisk/underscore is not part of double
+      const singleChar = match[7] ? '*' : '_';
+      const isPartOfBold = text[match.index - 1] === singleChar || text[match.index + (match[7] ? match[7].length : match[9].length)] === singleChar;
+
+      if (!isPartOfBold) {
+        matches.push({
+          start: match.index,
+          end: match.index + (match[7] ? match[7].length : match[9].length),
+          type: 'italic',
+          content: match[8] || match[10]
+        });
+      }
+    }
+  }
+
+  // Remove overlapping matches (keep strikethrough > bold > italic priority)
+  const filteredMatches = matches.filter((m, idx) => {
+    return !matches.some((other, otherIdx) =>
+      otherIdx !== idx &&
+      m.start >= other.start &&
+      m.end <= other.end &&
+      (
+        (m.type === 'italic' && (other.type === 'bold' || other.type === 'strikethrough')) ||
+        (m.type === 'bold' && other.type === 'strikethrough')
+      )
+    );
+  });
+
+  if (filteredMatches.length === 0) {
     return [<span key={`text-${keyCounter++}`}>{text}</span>];
   }
 
-  // Split by bold/italic matches
+  // Split by matches
   let lastIndex = 0;
-  matches.forEach((match) => {
+  filteredMatches.forEach((match) => {
     // Add text before match
     if (match.start > lastIndex) {
       parts.push(<span key={`text-${keyCounter++}`}>{text.substring(lastIndex, match.start)}</span>);
     }
 
-    // Add bold or italic element
+    // Add formatted element
     if (match.type === 'bold') {
       parts.push(
         <strong key={`bold-${keyCounter++}`} className="font-semibold text-gray-900">
           {match.content}
         </strong>
       );
-    } else {
+    } else if (match.type === 'italic') {
       parts.push(
         <em key={`italic-${keyCounter++}`} className="italic text-gray-800">
           {match.content}
         </em>
+      );
+    } else if (match.type === 'strikethrough') {
+      parts.push(
+        <del key={`strike-${keyCounter++}`} className="line-through text-gray-500">
+          {match.content}
+        </del>
       );
     }
 
@@ -593,3 +913,4 @@ export const MarkdownContent: React.FC<{ content: string; className?: string }> 
     </div>
   );
 };
+
