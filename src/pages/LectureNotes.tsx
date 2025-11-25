@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchTranscriptText, TranscriptText } from '../api/transcripts';
+import { fetchTranscriptNotes, fetchTranscriptText, TranscriptText } from '../api/transcripts';
+import { formatMarkdown } from '../utils/markdownFormatter';
 import {
   ArrowLeftIcon,
   PrinterIcon,
@@ -16,7 +17,8 @@ type RouteParams = {
 const LectureNotes = () => {
   const { id } = useParams<RouteParams>();
   const navigate = useNavigate();
-  const [data, setData] = useState<TranscriptText | null>(null);
+  const [notesData, setNotesData] = useState<any[] | null>(null);
+  const [transcriptData, setTranscriptData] = useState<TranscriptText | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -26,9 +28,24 @@ const LectureNotes = () => {
     if (!Number.isFinite(transcriptId)) return;
     setLoading(true);
     setError(null);
-    fetchTranscriptText(transcriptId)
-      .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load transcript'))
+    
+    // First try to fetch notes
+    fetchTranscriptNotes(transcriptId)
+      .then((notes) => {
+        if (notes && notes.length > 0) {
+          // If notes exist, use them
+          setNotesData(notes);
+        } else {
+          // If no notes exist, fall back to transcript text
+          return fetchTranscriptText(transcriptId);
+        }
+      })
+      .then((transcriptText) => {
+        if (transcriptText && !notesData) {
+          setTranscriptData(transcriptText);
+        }
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load notes'))
       .finally(() => setLoading(false));
   }, [transcriptId]);
 
@@ -36,7 +53,7 @@ const LectureNotes = () => {
     return (
       <div className="max-w-4xl mx-auto text-center py-12">
         <AcademicCapIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to load transcript</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to load notes</h2>
         <p className="text-gray-600 mb-6">{error}</p>
         <button
           onClick={() => navigate('/lectures')}
@@ -48,7 +65,7 @@ const LectureNotes = () => {
     );
   }
 
-  if (!data) {
+  if (!notesData && !transcriptData) {
     return (
       <div className="max-w-4xl mx-auto text-center py-12">
         <AcademicCapIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
@@ -79,55 +96,23 @@ const LectureNotes = () => {
   };
 
   const handleCopyNotes = (): void => {
-    void navigator.clipboard.writeText(data.text);
+    const textToCopy = notesData 
+      ? notesData.map(note => note.generatedText).join('\n\n')
+      : transcriptData?.text || '';
+    void navigator.clipboard.writeText(textToCopy);
     // eslint-disable-next-line no-alert
     alert('Notes copied to clipboard!');
   };
 
-  const formatNotes = (notes: string) => {
-    return notes
-      .split('\n')
-      .map((line, index) => {
-        if (line.startsWith('### ')) {
-          return <h3 key={index} className="text-lg font-semibold text-gray-900 mt-6 mb-3">{line.slice(4)}</h3>;
-        }
-        if (line.startsWith('## ')) {
-          return <h2 key={index} className="text-xl font-bold text-gray-900 mt-8 mb-4">{line.slice(3)}</h2>;
-        }
-        if (line.startsWith('# ')) {
-          return <h1 key={index} className="text-2xl font-bold text-gray-900 mt-8 mb-6">{line.slice(2)}</h1>;
-        }
-        
-        if (line.startsWith('```')) {
-          return null;
-        }
-        
-        if (line.startsWith('- ')) {
-          return <li key={index} className="ml-4 mb-1">{line.slice(2)}</li>;
-        }
-        
-        if (line.includes('**')) {
-          const parts = line.split(/(\*\*.*?\*\*)/);
-          return (
-            <p key={index} className="mb-3 leading-relaxed">
-              {parts.map((part, partIndex) => 
-                part.startsWith('**') && part.endsWith('**') ? (
-                  <strong key={partIndex} className="font-semibold">{part.slice(2, -2)}</strong>
-                ) : (
-                  <span key={partIndex}>{part}</span>
-                )
-              )}
-            </p>
-          );
-        }
-        
-        if (line.trim() === '') {
-          return <div key={index} className="mb-2" />;
-        }
-        
-        return <p key={index} className="mb-3 leading-relaxed">{line}</p>;
-      });
-  };
+  // Determine the title and content to display
+  const displayTitle = notesData 
+    ? `Lecture Notes${notesData.length > 1 ? ` (${notesData.length} notes)` : ''}`
+    : transcriptData?.name || 'Lecture Notes';
+  
+  const displayContent = notesData 
+    ? notesData.map(note => note.generatedText).join('\n\n')
+    : transcriptData?.text || '';
+
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -143,10 +128,21 @@ const LectureNotes = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
           <div className="flex-1 mb-4 lg:mb-0">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {data.name}
+              {displayTitle}
             </h1>
             
-            <div className="flex items-center text-sm text-gray-600"></div>
+            <div className="flex items-center text-sm text-gray-600">
+              {notesData && (
+                <span className="text-green-600 font-medium">
+                  ✓ AI-generated notes available
+                </span>
+              )}
+              {!notesData && transcriptData && (
+                <span className="text-orange-600 font-medium">
+                  ⚠ Showing raw transcript (notes not yet generated)
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-3">
@@ -172,7 +168,7 @@ const LectureNotes = () => {
       <div className="card print:shadow-none print:border-none">
         <div className="prose prose-gray max-w-none">
           <div className="space-y-2">
-            {formatNotes(data.text)}
+            {formatMarkdown(displayContent)}
           </div>
         </div>
       </div>

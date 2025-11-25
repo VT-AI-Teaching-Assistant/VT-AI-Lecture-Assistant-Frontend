@@ -32,7 +32,7 @@ const Layout = ({ children }: LayoutProps) => {
 
   const baseNavigation: NavigationItem[] = [
     { name: 'Profile', href: '/profile', icon: UserIcon },
-    { name: 'Home', href: '/', icon: HomeIcon },
+    { name: 'Home', href: '/home', icon: HomeIcon },
     { name: 'Chat with AI', href: '/chat', icon: ChatBubbleLeftRightIcon },
     { name: 'Lectures', href: '/lectures', icon: AcademicCapIcon },
     { name: 'Grades', href: '/grades', icon: ChartBarIcon },
@@ -45,8 +45,8 @@ const Layout = ({ children }: LayoutProps) => {
       : baseNavigation;
 
   const isActive = (path: string): boolean => {
-    if (path === '/' && location.pathname === '/') return true;
-    if (path !== '/' && location.pathname.startsWith(path)) return true;
+    if (path === '/home' && location.pathname === '/home') return true;
+    if (path !== '/home' && location.pathname.startsWith(path)) return true;
     return false;
   };
 

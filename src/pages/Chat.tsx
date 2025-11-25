@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 import { useCourse } from '../context/CourseContext';
+import { qaApiService } from '../api/qa';
+import { formatMarkdown } from '../utils/markdownFormatter';
 
 type ChatMessage = {
   id: number;
@@ -26,38 +28,46 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const simulateAIResponse = (userMessage: string): void => {
+  const getAIResponse = async (userMessage: string): Promise<void> => {
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      let aiResponse = "";
-      const lowerMessage = userMessage.toLowerCase();
-      const courseName = selectedCourse ? `${selectedCourse.code} - ${selectedCourse.title}` : 'your course';
-      
-      if (lowerMessage.includes('assignment') || lowerMessage.includes('homework')) {
-        aiResponse = `I'd be happy to help you with your assignment! Could you please provide more details about the specific topic or problem you're working on? For ${courseName}, I can assist with course-specific concepts, implementation strategies, and problem-solving approaches.`;
-      } else if (lowerMessage.includes('data structure') || lowerMessage.includes('algorithm')) {
-        aiResponse = `Great question about data structures and algorithms! These are fundamental concepts in computer science. Which specific data structure or algorithm are you interested in learning about? I can explain concepts relevant to ${courseName} and their time/space complexities.`;
-      } else if (lowerMessage.includes('exam') || lowerMessage.includes('midterm') || lowerMessage.includes('test')) {
-        aiResponse = `I can help you prepare for your exam! For the ${courseName} exam, you should focus on the key topics covered in your course. Would you like me to create practice problems or explain any specific topics from your course materials?`;
-      } else if (lowerMessage.includes('help') || lowerMessage.includes('stuck')) {
-        aiResponse = `I'm here to help! Don't worry about being stuck - that's a normal part of learning. Could you describe what specific concept or problem you're working on? I can break it down into smaller, manageable steps and provide examples to make it clearer.`;
-      } else {
-        aiResponse = `Hello! I'm your AI Learning Assistant for ${courseName}. I'm here to help you with course concepts, assignments, exam preparation, and any course-related questions you might have. How can I assist you today?`;
+    
+    try {
+      // Check if a course is selected
+      if (!selectedCourse) {
+        throw new Error('Please select a course first to ask questions');
       }
-
+      
+      // Call the QA API
+      const response = await qaApiService.askQuestion(userMessage, selectedCourse.course_id);
+      
       const aiMessage: ChatMessage = {
         id: Date.now(),
-        text: aiResponse,
+        text: response.answer,
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-
+      
       setMessages((prev) => [...prev, aiMessage]);
-    }, 1500);
+    } catch (error) {
+      console.error('QA API error:', error);
+      
+      // Show error message to user
+      const errorMessage: ChatMessage = {
+        id: Date.now(),
+        text: error instanceof Error 
+          ? `I'm sorry, I encountered an error: ${error.message}` 
+          : 'I\'m sorry, I encountered an error processing your question. Please try again.',
+        isUser: false,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent): void => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!inputValue.trim()) return;
     if (messages.length === 0) {
@@ -70,14 +80,14 @@ const Chat = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     setMessages((prev) => [...prev, userMessage]);
-    simulateAIResponse(inputValue.trim());
+    await getAIResponse(inputValue.trim());
     setInputValue('');
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>): void => {
+  const handleKeyPress = async (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>): Promise<void> => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e as unknown as React.FormEvent);
+      await handleSubmit(e as unknown as React.FormEvent);
     }
   };
 
@@ -235,7 +245,13 @@ const Chat = () => {
                       ? 'bg-gradient-to-r from-vt-maroon to-red-700 text-white rounded-br-sm' 
                       : 'bg-white border border-gray-200/50 text-gray-900 rounded-bl-sm'
                   }`}>
-                    <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
+                    {message.isUser ? (
+                      <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
+                    ) : (
+                      <div className="markdown-content leading-relaxed">
+                        {formatMarkdown(message.text)}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center space-x-2 mt-2 px-2">
                     <span className="text-xs text-gray-500">{message.timestamp}</span>

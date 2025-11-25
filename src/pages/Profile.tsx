@@ -33,6 +33,7 @@ const Profile = () => {
   // Profile data
   const [canvasEnrollments, setCanvasEnrollments] = useState<CanvasEnrollment[]>([]);
   const [registeredCourses, setRegisteredCourses] = useState<RegisteredCourse[]>([]);
+  const [enrolledCourses, setEnrolledCourses] = useState<RegisteredCourse[]>([]); // For students
   const [profileData, setProfileData] = useState<any>(null);
   
   // Course registration state
@@ -57,7 +58,11 @@ const Profile = () => {
   // Auto-switch to appropriate tab based on user state
   useEffect(() => {
     if (user?.role === 'instructor' && !user.hasRegisteredCourses) {
+      // Instructor needs to register courses first
       setActiveTab('register');
+    } else if (user?.role === 'student') {
+      // Students always go to context tab (skip registration)
+      setActiveTab('context');
     } else if (user && !selectedCourse) {
       setActiveTab('context');
     }
@@ -75,6 +80,7 @@ const Profile = () => {
         setProfileData(response.data);
         setCanvasEnrollments(response.data.canvasEnrollments || []);
         setRegisteredCourses(response.data.registeredCourses || []);
+        setEnrolledCourses(response.data.enrolledCourses || []); // For students
       }
     } catch (err: any) {
       console.error('Error loading profile:', err);
@@ -141,7 +147,7 @@ const Profile = () => {
         course_id: course.localCourseId,
         code: course.courseCode,
         title: course.courseName,
-        instructorId: user?.entityId.toString()
+        instructorId: user?.role === 'instructor' ? user?.entityId.toString() : undefined
       });
       
       console.log('Course context set successfully');
@@ -295,7 +301,9 @@ const Profile = () => {
                     <span className="text-gray-600">
                       {user?.role === 'instructor' ? 'Registered' : 'Enrolled'}
                     </span>
-                    <span className="text-2xl font-bold text-green-600">{registeredCourses.length}</span>
+                    <span className="text-2xl font-bold text-green-600">
+                      {user?.role === 'instructor' ? registeredCourses.length : enrolledCourses.length}
+                    </span>
                   </div>
                 </div>
                 <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -437,9 +445,10 @@ const Profile = () => {
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-vt-maroon"></div>
                 </div>
-              ) : registeredCourses.length > 0 ? (
+              ) : (user?.role === 'instructor' && registeredCourses.length > 0) || (user?.role === 'student' && enrolledCourses.length > 0) ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {registeredCourses.map(course => (
+                  {/* Show registeredCourses for instructors, enrolledCourses for students */}
+                  {(user?.role === 'instructor' ? registeredCourses : enrolledCourses).map(course => (
                     <div
                       key={course.courseId}
                       onClick={() => handleSelectCourseContext(course)}
@@ -466,8 +475,10 @@ const Profile = () => {
                   <p className="text-gray-600">
                     {user?.role === 'instructor' 
                       ? 'Please register courses first in the Course Registration tab' 
-                      : 'No courses available'}
+                      : 'No enrolled courses found. Please contact your instructor.'}
                   </p>
+                  {/* TODO: In the future, when student registration is implemented, 
+                      add a button here to allow students to register for courses */}
                 </div>
               )}
             </div>

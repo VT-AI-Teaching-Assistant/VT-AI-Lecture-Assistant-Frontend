@@ -138,25 +138,29 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
       if (response.success && response.data) {
         const data = response.data;
         
-        // Courses already registered in the system
-        const registeredCoursesData = data.registeredCourses || [];
-        console.log('CourseContext - registeredCourses:', registeredCoursesData);
+        // For instructors: use registeredCourses (courses they teach)
+        // For students: use enrolledCourses (courses they're enrolled in)
+        const coursesData = user.role === 'student' 
+          ? (data.enrolledCourses || []) 
+          : (data.registeredCourses || []);
         
-        const formattedRegisteredCourses: Course[] = registeredCoursesData.map((c: any) => ({
+        console.log('CourseContext - Courses for', user.role + ':', coursesData);
+        
+        const formattedCourses: Course[] = coursesData.map((c: any) => ({
           id: c.localCourseId?.toString() || c.courseId.toString(),
           course_id: c.localCourseId || c.courseId, // Use local DB ID
           canvas_id: parseInt(c.canvasId), // Canvas course ID for API calls
           code: c.courseCode || '',
           title: c.courseName || '',
-          instructorId: user.entityId.toString()
+          instructorId: user.role === 'instructor' ? user.entityId.toString() : undefined
         }));
         
-        console.log('CourseContext - formattedRegisteredCourses:', formattedRegisteredCourses);
-        setRegisteredCourses(formattedRegisteredCourses);
+        console.log('CourseContext - Formatted courses:', formattedCourses);
+        setRegisteredCourses(formattedCourses);
         
         // If we have a selected course ID but no details, populate from registered courses
         if (selectedCourse && !selectedCourse.code) {
-          const fullCourse = formattedRegisteredCourses.find(c => c.course_id === selectedCourse.course_id);
+          const fullCourse = formattedCourses.find(c => c.course_id === selectedCourse.course_id);
           if (fullCourse) {
             setSelectedCourseState(fullCourse);
           }

@@ -129,7 +129,11 @@ export class CourseRepository implements ICourseRepository {
 @injectable()
 export class AnnouncementRepository implements IAnnouncementRepository {
   async getAnnouncements(courseId?: string): Promise<Announcement[]> {
-    const url = courseId ? `/announcements?courseId=${courseId}` : '/announcements';
+    if (!courseId) {
+      console.warn('No courseId provided for announcements');
+      return [];
+    }
+    const url = `/courses/${courseId}/announcements`;
     const response = await apiService.get<ApiResponse<Announcement[]>>(url);
     return response.data;
   }
