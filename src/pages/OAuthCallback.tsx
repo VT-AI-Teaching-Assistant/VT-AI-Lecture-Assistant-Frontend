@@ -76,9 +76,9 @@ const OAuthCallback = () => {
 
           setStatus('success');
           
-          // Redirect to home page after a brief delay
+          // Redirect to profile page after a brief delay
           setTimeout(() => {
-            navigate('/');
+            navigate('/profile');
           }, 1000);
         } else {
           setStatus('error');
@@ -137,7 +137,7 @@ const OAuthCallback = () => {
                 </svg>
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Login Successful!</h1>
-              <p className="text-gray-500">Redirecting to dashboard...</p>
+              <p className="text-gray-500">Redirecting to your profile...</p>
             </>
           )}
         </div>
