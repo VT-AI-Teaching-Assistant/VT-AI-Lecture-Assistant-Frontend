@@ -13,6 +13,7 @@ import {
   IGradeRepository,
   IFAQRepository,
   ITranscriptRepository,
+  IAnalyticsRepository,
 } from './repositories/interfaces';
 import {
   AuthRepository,
@@ -25,6 +26,7 @@ import {
   GradeRepository,
   FAQRepository,
   TranscriptRepository,
+  AnalyticsRepository,
 } from './repositories/implementations';
 import { TYPES } from './types';
 
@@ -42,5 +44,6 @@ container.bind<ILectureRepository>(TYPES.LectureRepository).to(LectureRepository
 container.bind<IGradeRepository>(TYPES.GradeRepository).to(GradeRepository).inSingletonScope();
 container.bind<IFAQRepository>(TYPES.FAQRepository).to(FAQRepository).inSingletonScope();
 container.bind<ITranscriptRepository>(TYPES.TranscriptRepository).to(TranscriptRepository).inSingletonScope();
+container.bind<IAnalyticsRepository>(TYPES.AnalyticsRepository).to(AnalyticsRepository).inSingletonScope();
 
 export { container };

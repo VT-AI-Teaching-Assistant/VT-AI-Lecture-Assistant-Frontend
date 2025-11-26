@@ -12,6 +12,7 @@ export const TYPES = {
   GradeRepository: Symbol.for('GradeRepository'),
   FAQRepository: Symbol.for('FAQRepository'),
   TranscriptRepository: Symbol.for('TranscriptRepository'),
+  AnalyticsRepository: Symbol.for('AnalyticsRepository'),
   // Presenter symbols
   AuthPresenter: Symbol.for('AuthPresenter'),
   UserProfilePresenter: Symbol.for('UserProfilePresenter'),
