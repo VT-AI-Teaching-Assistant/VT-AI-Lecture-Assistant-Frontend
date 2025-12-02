@@ -32,7 +32,7 @@ const Login = () => {
     const res = await login(email.trim(), password);
     setIsLoading(false);
     if (res.success) {
-      navigate('/');
+      navigate('/profile');
     } else {
       setError(res.message);
     }
@@ -97,17 +97,16 @@ const Login = () => {
               {error && (
                 <div className="text-sm text-red-600">{error}</div>
               )}
-              
+
               {/* Backend Status */}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Backend Status:</span>
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    backendStatus === '✅ Connected' ? 'bg-green-100 text-green-800' :
+                  <span className={`px-2 py-1 rounded text-xs ${backendStatus === '✅ Connected' ? 'bg-green-100 text-green-800' :
                     backendStatus === '❌ Failed' ? 'bg-red-100 text-red-800' :
-                    backendStatus === 'Testing...' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                      backendStatus === 'Testing...' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                    }`}>
                     {backendStatus}
                   </span>
                   <button
@@ -119,13 +118,12 @@ const Login = () => {
                   </button>
                 </div>
               </div>
-              
+
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full py-2 rounded-lg text-white font-medium transition-colors ${
-                  isLoading ? 'bg-vt-maroon/70' : 'bg-vt-maroon hover:bg-red-800'
-                }`}
+                className={`w-full py-2 rounded-lg text-white font-medium transition-colors ${isLoading ? 'bg-vt-maroon/70' : 'bg-vt-maroon hover:bg-red-800'
+                  }`}
               >
                 {isLoading ? 'Signing in…' : 'Sign in'}
               </button>
