@@ -16,6 +16,10 @@ import Lectures from './pages/Lectures';
 import LectureNotes from './pages/LectureNotes';
 import Grades from './pages/Grades';
 import FAQ from './pages/FAQ';
+import Analytics from './pages/Analytics';
+import StudentQuestionsDetail from './pages/StudentQuestionsDetail';
+import History from './pages/History';
+import Disputes from './pages/Disputes';
 import { ErrorBoundary } from './utils/errorHandling';
 import './container'; // Initialize dependency injection container
 import { bindPresenters } from './presenterBindings'; // Bind presenters
@@ -72,6 +76,26 @@ function App() {
                         <Route path="/faq" element={
                           <ProtectedRoute>
                             <FAQ />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/history" element={
+                          <ProtectedRoute allow={["student"]}>
+                            <History />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/analytics" element={
+                          <ProtectedRoute allow={["instructor"]}>
+                            <Analytics />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/analytics/student/:studentId" element={
+                          <ProtectedRoute allow={["instructor"]}>
+                            <StudentQuestionsDetail />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/disputes" element={
+                          <ProtectedRoute allow={["instructor"]}>
+                            <Disputes />
                           </ProtectedRoute>
                         } />
                         <Route path="/instructor/upload" element={
