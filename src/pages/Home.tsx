@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Announcement, Discussion } from '../models';
 import { PresenterFactory } from '../presenters';
@@ -13,8 +13,6 @@ const Home = () => {
   const [newPostContent, setNewPostContent] = useState<string>('');
   const [newPostTags, setNewPostTags] = useState<string>('');
   const [isSubmittingPost, setIsSubmittingPost] = useState<boolean>(false);
-  const [createdPostId, setCreatedPostId] = useState<string | null>(null);
-  const vectorizationPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { selectedCourse } = useCourse();
 
   const presenter = PresenterFactory.getHomePresenter();
@@ -27,14 +25,6 @@ const Home = () => {
     try {
       discussionsState.setLoading();
       const discussionsResponse = await presenter.loadDiscussions(selectedCourse.id.toString());
-      console.log('=== DEBUG: Discussions Response ===');
-      console.log('Full response:', discussionsResponse);
-      console.log('Discussions data:', discussionsResponse.data);
-      if (discussionsResponse.data && discussionsResponse.data.length > 0) {
-        console.log('First discussion:', discussionsResponse.data[0]);
-        console.log('First discussion vectorized:', discussionsResponse.data[0].vectorized);
-        console.log('First discussion vectorizedAt:', discussionsResponse.data[0].vectorizedAt);
-      }
       discussionsState.setSuccess(discussionsResponse.data);
     } catch (error) {
       console.error('Error loading discussions:', error);
@@ -66,62 +56,6 @@ const Home = () => {
       loadData();
     }
   }, [selectedCourse]);
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (vectorizationPollIntervalRef.current) {
-        clearInterval(vectorizationPollIntervalRef.current);
-      }
-    };
-  }, []);
-
-  // Poll for vectorization status
-  useEffect(() => {
-    if (!createdPostId || !selectedCourse?.id) {
-      // Clean up if no post to poll
-      if (vectorizationPollIntervalRef.current) {
-        clearInterval(vectorizationPollIntervalRef.current);
-        vectorizationPollIntervalRef.current = null;
-      }
-      return;
-    }
-
-    const checkVectorizationStatus = async () => {
-      try {
-        const discussionsResponse = await presenter.loadDiscussions(selectedCourse.id.toString());
-        const currentDiscussions = discussionsResponse.data || [];
-        const createdPost = currentDiscussions.find(d => d.id === createdPostId);
-
-        if (createdPost) {
-          // Update the discussions state
-          discussionsState.setSuccess(currentDiscussions);
-
-          if (createdPost.vectorized) {
-            // Stop polling once vectorized
-            if (vectorizationPollIntervalRef.current) {
-              clearInterval(vectorizationPollIntervalRef.current);
-              vectorizationPollIntervalRef.current = null;
-            }
-            setCreatedPostId(null);
-            console.log('Post vectorized successfully!');
-          }
-        }
-      } catch (error) {
-        console.error('Error checking vectorization status:', error);
-      }
-    };
-
-    // Poll every 3 seconds
-    vectorizationPollIntervalRef.current = setInterval(checkVectorizationStatus, 3000);
-
-    return () => {
-      if (vectorizationPollIntervalRef.current) {
-        clearInterval(vectorizationPollIntervalRef.current);
-        vectorizationPollIntervalRef.current = null;
-      }
-    };
-  }, [createdPostId, selectedCourse]);
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,9 +97,6 @@ const Home = () => {
         setNewPostContent('');
         setNewPostTags('');
         setShowNewPostModal(false);
-
-        // Set the created post ID to start polling for vectorization
-        setCreatedPostId(newDiscussion.id);
 
         // Reload discussions to show the new post
         await loadDiscussions();
@@ -432,45 +363,9 @@ const Home = () => {
               (discussions || []).map((discussion) => (
                 <div key={discussion.id} className="border border-gray-200 rounded-lg p-4 hover:border-vt-maroon transition-all duration-200 cursor-pointer">
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-gray-900 hover:text-vt-maroon transition-colors duration-200">
-                          {discussion.title || 'Untitled'}
-                        </h3>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${discussion.vectorized === true
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                          {discussion.vectorized === true ? (
-                            <span className="flex items-center gap-1">
-                              <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                              </svg>
-                              Vectorized
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1">
-                              <svg className="h-3 w-3 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                <line x1="12" x2="12" y1="2" y2="6"></line>
-                                <line x1="12" x2="12" y1="18" y2="22"></line>
-                                <line x1="4.93" x2="7.76" y1="4.93" y2="7.76"></line>
-                                <line x1="16.24" x2="19.07" y1="16.24" y2="19.07"></line>
-                                <line x1="2" x2="6" y1="12" y2="12"></line>
-                                <line x1="18" x2="22" y1="12" y2="12"></line>
-                                <line x1="4.93" x2="7.76" y1="19.07" y2="16.24"></line>
-                                <line x1="16.24" x2="19.07" y1="7.76" y2="4.93"></line>
-                              </svg>
-                              Processing...
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      {discussion.vectorized && discussion.vectorizedAt && (
-                        <p className="text-xs text-gray-500">
-                          Vectorized: {new Date(discussion.vectorizedAt).toLocaleString()}
-                        </p>
-                      )}
-                    </div>
+                    <h3 className="font-semibold text-gray-900 hover:text-vt-maroon transition-colors duration-200">
+                      {discussion.title || 'Untitled'}
+                    </h3>
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <span className="flex items-center">
                         <svg className="mr-1 h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
