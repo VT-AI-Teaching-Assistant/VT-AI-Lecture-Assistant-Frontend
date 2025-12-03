@@ -67,6 +67,8 @@ export interface Discussion {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  vectorized?: boolean;
+  vectorizedAt?: string | null;
 }
 
 export interface ChatMessage {

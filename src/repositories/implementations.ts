@@ -78,24 +78,24 @@ export class AuthRepository implements IAuthRepository {
   }
 }
 
-  @injectable()
-  export class UserRepository implements IUserRepository {
-    async getProfile(userId: string, role?: 'student' | 'instructor'): Promise<UserProfile> {
-      console.log('UserRepository.getProfile called with userId:', userId, 'role:', role);
-      const url = role ? `/user/profile?role=${role}` : '/user/profile';
-      const response = await apiService.getFullResponse<any>(url); // Use getFullResponse to access instructorData
-      console.log('UserRepository.getProfile full response:', response);
-      
-      // The backend response includes instructorData for instructors
-      // We need to extract and store this information
-      if (role === 'instructor' && response.instructorData) {
-        console.log('Instructor data found in response:', response.instructorData);
-        // Store instructor data in localStorage for later use
-        localStorage.setItem('vt-ai-instructor-data', JSON.stringify(response.instructorData));
-      }
-      
-      return response.data;
+@injectable()
+export class UserRepository implements IUserRepository {
+  async getProfile(userId: string, role?: 'student' | 'instructor'): Promise<UserProfile> {
+    console.log('UserRepository.getProfile called with userId:', userId, 'role:', role);
+    const url = role ? `/user/profile?role=${role}` : '/user/profile';
+    const response = await apiService.getFullResponse<any>(url); // Use getFullResponse to access instructorData
+    console.log('UserRepository.getProfile full response:', response);
+
+    // The backend response includes instructorData for instructors
+    // We need to extract and store this information
+    if (role === 'instructor' && response.instructorData) {
+      console.log('Instructor data found in response:', response.instructorData);
+      // Store instructor data in localStorage for later use
+      localStorage.setItem('vt-ai-instructor-data', JSON.stringify(response.instructorData));
     }
+
+    return response.data;
+  }
 
   async updateProfile(userId: string, profile: Partial<UserProfile>): Promise<UserProfile> {
     const response = await apiService.patch<ApiResponse<UserProfile>>(`/users/${userId}/profile`, profile);
@@ -167,8 +167,35 @@ export class DiscussionRepository implements IDiscussionRepository {
     });
     if (courseId) params.append('courseId', courseId);
 
-    const response = await apiService.get<PaginatedResponse<Discussion>>(`/discussions?${params}`);
-    return response;
+    const response = await apiService.get<PaginatedResponse<any>>(`/discussions?${params}`);
+
+    // Map backend response (may have snake_case) to frontend format (camelCase)
+    const mappedData = (response.data || []).map((discussion: any) => {
+      // Handle both camelCase and snake_case from backend
+      // Default to false if not provided
+      const vectorized = discussion.vectorized !== undefined ? discussion.vectorized : false;
+      const vectorizedAt = discussion.vectorizedAt || discussion.vectorized_at || null;
+
+      console.log('Mapping discussion:', {
+        id: discussion.id,
+        title: discussion.title,
+        vectorized: discussion.vectorized,
+        vectorized_at: discussion.vectorized_at,
+        mappedVectorized: vectorized,
+        mappedVectorizedAt: vectorizedAt
+      });
+
+      return {
+        ...discussion,
+        vectorized,
+        vectorizedAt,
+      };
+    });
+
+    return {
+      ...response,
+      data: mappedData
+    };
   }
 
   async getDiscussionById(id: string): Promise<Discussion> {
@@ -177,8 +204,24 @@ export class DiscussionRepository implements IDiscussionRepository {
   }
 
   async createDiscussion(request: CreateDiscussionRequest): Promise<Discussion> {
-    const response = await apiService.post<ApiResponse<Discussion>>('/discussions', request);
-    return response.data;
+    const response = await apiService.post<ApiResponse<any>>('/discussions', request);
+
+    // Map backend response to frontend format
+    const discussion = response.data;
+    const vectorized = discussion.vectorized !== undefined ? discussion.vectorized : false;
+    const vectorizedAt = discussion.vectorizedAt || discussion.vectorized_at || null;
+
+    console.log('Created discussion response:', {
+      raw: discussion,
+      vectorized,
+      vectorizedAt
+    });
+
+    return {
+      ...discussion,
+      vectorized,
+      vectorizedAt,
+    };
   }
 
   async updateDiscussion(id: string, discussion: Partial<Discussion>): Promise<Discussion> {
