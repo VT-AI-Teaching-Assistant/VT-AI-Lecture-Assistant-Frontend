@@ -13,6 +13,8 @@ import {
   IGradeRepository,
   IFAQRepository,
   ITranscriptRepository,
+  IAnalyticsRepository,
+  AnalyticsResponse,
 } from '../repositories/interfaces';
 import {
   User,
@@ -361,5 +363,22 @@ export class TranscriptRepository implements ITranscriptRepository {
 
   async deleteTranscript(id: string): Promise<void> {
     await apiService.delete(`/transcripts/${id}`);
+  }
+}
+
+@injectable()
+export class AnalyticsRepository implements IAnalyticsRepository {
+  async getQaAnalytics(courseId: number, startDate?: string, endDate?: string): Promise<AnalyticsResponse> {
+    const params = new URLSearchParams();
+    if (startDate) {
+      params.append('startDate', startDate);
+    }
+    if (endDate) {
+      params.append('endDate', endDate);
+    }
+
+    const url = `/analytics/qa${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await apiService.get<ApiResponse<AnalyticsResponse>>(url);
+    return response.data;
   }
 }

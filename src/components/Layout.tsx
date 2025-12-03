@@ -10,7 +10,9 @@ import {
   ChartBarIcon,
   QuestionMarkCircleIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  ClockIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
 type LayoutProps = {
@@ -32,7 +34,7 @@ const Layout = ({ children }: LayoutProps) => {
 
   const baseNavigation: NavigationItem[] = [
     { name: 'Profile', href: '/profile', icon: UserIcon },
-    { name: 'Home', href: '/', icon: HomeIcon },
+    { name: 'Home', href: '/home', icon: HomeIcon },
     { name: 'Chat with AI', href: '/chat', icon: ChatBubbleLeftRightIcon },
     { name: 'Lectures', href: '/lectures', icon: AcademicCapIcon },
     { name: 'Grades', href: '/grades', icon: ChartBarIcon },
@@ -41,12 +43,16 @@ const Layout = ({ children }: LayoutProps) => {
 
   const navigation: NavigationItem[] =
     user?.role === 'instructor'
-      ? [...baseNavigation, { name: 'Upload Transcript', href: '/instructor/upload', icon: AcademicCapIcon }]
-      : baseNavigation;
+      ? [...baseNavigation, 
+         { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
+         { name: 'Disputes', href: '/disputes', icon: ExclamationTriangleIcon },
+         { name: 'Upload Transcript', href: '/instructor/upload', icon: AcademicCapIcon }]
+      : [...baseNavigation, 
+         { name: 'History', href: '/history', icon: ClockIcon }];
 
   const isActive = (path: string): boolean => {
-    if (path === '/' && location.pathname === '/') return true;
-    if (path !== '/' && location.pathname.startsWith(path)) return true;
+    if (path === '/home' && location.pathname === '/home') return true;
+    if (path !== '/home' && location.pathname.startsWith(path)) return true;
     return false;
   };
 

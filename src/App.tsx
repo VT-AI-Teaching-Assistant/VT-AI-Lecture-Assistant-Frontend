@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
+import Landing from './pages/Landing';
 import InstructorUpload from './pages/InstructorUpload';
 import { AuthProvider } from './context/AuthContext';
 import { CourseSelectionProvider } from './context/CourseSelectionContext';
@@ -15,6 +16,10 @@ import Lectures from './pages/Lectures';
 import LectureNotes from './pages/LectureNotes';
 import Grades from './pages/Grades';
 import FAQ from './pages/FAQ';
+import Analytics from './pages/Analytics';
+import StudentQuestionsDetail from './pages/StudentQuestionsDetail';
+import History from './pages/History';
+import Disputes from './pages/Disputes';
 import { ErrorBoundary } from './utils/errorHandling';
 import './container'; // Initialize dependency injection container
 import { bindPresenters } from './presenterBindings'; // Bind presenters
@@ -31,13 +36,14 @@ function App() {
             <CourseSelectionProvider>
               <CourseProvider>
                 <Routes>
+                <Route path="/" element={<Landing />} />
                 <Route path="/login" element={<Login />} />
                 <Route
                   path="/*"
                   element={
                     <Layout>
                       <Routes>
-                        <Route path="/" element={
+                        <Route path="/home" element={
                           <ProtectedRoute>
                             <Home />
                           </ProtectedRoute>
@@ -70,6 +76,26 @@ function App() {
                         <Route path="/faq" element={
                           <ProtectedRoute>
                             <FAQ />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/history" element={
+                          <ProtectedRoute allow={["student"]}>
+                            <History />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/analytics" element={
+                          <ProtectedRoute allow={["instructor"]}>
+                            <Analytics />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/analytics/student/:studentId" element={
+                          <ProtectedRoute allow={["instructor"]}>
+                            <StudentQuestionsDetail />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/disputes" element={
+                          <ProtectedRoute allow={["instructor"]}>
+                            <Disputes />
                           </ProtectedRoute>
                         } />
                         <Route path="/instructor/upload" element={

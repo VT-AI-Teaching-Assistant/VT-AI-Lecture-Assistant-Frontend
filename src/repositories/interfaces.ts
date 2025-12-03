@@ -93,3 +93,13 @@ export interface ITranscriptRepository {
   updateTranscript(id: string, transcript: Partial<Transcript>): Promise<Transcript>;
   deleteTranscript(id: string): Promise<void>;
 }
+
+export interface AnalyticsResponse {
+  questionsPerDay: Array<{ date: string; count: number }>;
+  totalQuestions: number;
+  questionsByStudent: Array<{ studentId: number; studentName: string; questionCount: number }>;
+}
+
+export interface IAnalyticsRepository {
+  getQaAnalytics(courseId: number, startDate?: string, endDate?: string): Promise<AnalyticsResponse>;
+}
