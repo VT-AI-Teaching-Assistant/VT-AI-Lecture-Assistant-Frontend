@@ -1,7 +1,8 @@
-import React, { useState, ReactNode } from 'react';
+import React, { useState, useEffect, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCourse } from '../context/CourseContext';
+import AIDisclaimerModal, { hasAcknowledgedDisclaimer } from './AIDisclaimerModal';
 import {
   HomeIcon,
   UserIcon,
@@ -27,10 +28,22 @@ type NavigationItem = {
 
 const Layout = ({ children }: LayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { isCourseContextSet, selectedCourse } = useCourse();
+
+  // Check if disclaimer needs to be shown on mount
+  useEffect(() => {
+    if (user && !hasAcknowledgedDisclaimer()) {
+      setShowDisclaimer(true);
+    }
+  }, [user]);
+
+  const handleDisclaimerAcknowledge = () => {
+    setShowDisclaimer(false);
+  };
 
   const baseNavigation: NavigationItem[] = [
     { name: 'Profile', href: '/profile', icon: UserIcon },
@@ -166,6 +179,11 @@ const Layout = ({ children }: LayoutProps) => {
           {children}
         </main>
       </div>
+
+      {/* AI Disclaimer Modal - shows once per session after login */}
+      {showDisclaimer && (
+        <AIDisclaimerModal onAcknowledge={handleDisclaimerAcknowledge} />
+      )}
     </div>
   );
 };

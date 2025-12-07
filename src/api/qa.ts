@@ -7,11 +7,23 @@ export interface QaRequest {
   courseId: number;
 }
 
+export interface SourceInfo {
+  sourceType: string;
+  title: string | null;
+  sourceId: string | null;
+  courseId: string | null;
+  fileName: string | null;
+  chunkIndex: number | null;
+  relevanceScore: number | null;
+  excerpt: string | null;
+}
+
 export interface QaResponse {
   answer: string;
   question: string;
   courseId: number;
   timestamp: number;
+  sources: SourceInfo[] | null;
 }
 
 export interface ApiResponse<T> {
