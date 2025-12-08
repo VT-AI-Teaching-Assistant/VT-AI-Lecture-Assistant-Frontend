@@ -8,16 +8,34 @@ import { useCourse } from '../context/CourseContext';
 const Home = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [showNewPostModal, setShowNewPostModal] = useState<boolean>(false);
+  const [newPostTitle, setNewPostTitle] = useState<string>('');
+  const [newPostContent, setNewPostContent] = useState<string>('');
+  const [newPostTags, setNewPostTags] = useState<string>('');
+  const [isSubmittingPost, setIsSubmittingPost] = useState<boolean>(false);
   const { selectedCourse } = useCourse();
-  
+
   const presenter = PresenterFactory.getHomePresenter();
   const announcementsState = useAsyncState<Announcement[]>();
   const discussionsState = useAsyncState<Discussion[]>();
 
+  const loadDiscussions = async () => {
+    if (!selectedCourse?.id) return;
+
+    try {
+      discussionsState.setLoading();
+      const discussionsResponse = await presenter.loadDiscussions(selectedCourse.id.toString());
+      discussionsState.setSuccess(discussionsResponse.data);
+    } catch (error) {
+      console.error('Error loading discussions:', error);
+      discussionsState.setError(ErrorHandler.handle(error));
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       if (!selectedCourse?.id) return;
-      
+
       try {
         // Load announcements for the selected course
         announcementsState.setLoading();
@@ -26,9 +44,7 @@ const Home = () => {
         announcementsState.setSuccess(announcements);
 
         // Load discussions for the selected course
-        discussionsState.setLoading();
-        const discussionsResponse = await presenter.loadDiscussions(selectedCourse.id.toString());
-        discussionsState.setSuccess(discussionsResponse.data);
+        await loadDiscussions();
       } catch (error) {
         console.error('Error loading data:', error);
         announcementsState.setError(ErrorHandler.handle(error));
@@ -40,6 +56,60 @@ const Home = () => {
       loadData();
     }
   }, [selectedCourse]);
+
+  const handleCreatePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedCourse?.id) {
+      alert('Please select a course first');
+      return;
+    }
+
+    if (!newPostTitle.trim() || !newPostContent.trim()) {
+      alert('Please fill in both title and content');
+      return;
+    }
+
+    setIsSubmittingPost(true);
+    try {
+      const tagsArray = newPostTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+      const courseId = selectedCourse.id.toString();
+      const title = newPostTitle.trim();
+      const content = newPostContent.trim();
+
+      console.log('=== DEBUG: Request Data ===');
+      console.log('Course ID:', courseId);
+      console.log('Title:', title);
+      console.log('Content:', content);
+      console.log('Tags:', tagsArray);
+      console.log('Full request:', { courseId, title, content, tags: tagsArray });
+
+      const newDiscussion = await presenter.createDiscussion({
+        title,
+        content,
+        courseId,
+        tags: tagsArray
+      });
+
+      if (newDiscussion) {
+        // Reset form
+        setNewPostTitle('');
+        setNewPostContent('');
+        setNewPostTags('');
+        setShowNewPostModal(false);
+
+        // Reload discussions to show the new post
+        await loadDiscussions();
+      } else {
+        alert('Failed to create post. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error creating post:', error);
+      alert('Failed to create post: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setIsSubmittingPost(false);
+    }
+  };
 
   // Fallback data for development/demo
   const fallbackAnnouncements: Announcement[] = [
@@ -160,7 +230,7 @@ const Home = () => {
       <div className="bg-gradient-to-r from-vt-maroon to-vt-orange text-white rounded-lg p-6">
         <h1 className="text-3xl font-bold">Course Dashboard</h1>
         <p className="mt-2 opacity-90">
-          {selectedCourse 
+          {selectedCourse
             ? `Stay updated with announcements and join discussions for ${selectedCourse.code} - ${selectedCourse.title}`
             : 'Stay updated with announcements and join discussions'
           }
@@ -209,8 +279,8 @@ const Home = () => {
                         )}
                         <h3 className="font-semibold text-gray-900">{announcement.title}</h3>
                       </div>
-                      <div 
-                        className="text-gray-700 text-sm mb-2" 
+                      <div
+                        className="text-gray-700 text-sm mb-2"
                         dangerouslySetInnerHTML={{ __html: announcement.content }}
                       />
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
@@ -240,7 +310,10 @@ const Home = () => {
                 </svg>
                 Discussions
               </h2>
-              <button className="bg-vt-maroon text-white px-4 py-2 rounded-lg hover:bg-red-800 transition-colors duration-200 flex items-center space-x-2">
+              <button
+                onClick={() => setShowNewPostModal(true)}
+                className="bg-vt-maroon text-white px-4 py-2 rounded-lg hover:bg-red-800 transition-colors duration-200 flex items-center space-x-2"
+              >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                   <path d="M5 12h14"></path>
                   <path d="M12 5v14"></path>
@@ -263,7 +336,7 @@ const Home = () => {
                 <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                   <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                 </svg>
-                <select 
+                <select
                   value={selectedFilter}
                   onChange={(e) => setSelectedFilter(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vt-maroon focus:border-transparent"
@@ -287,18 +360,18 @@ const Home = () => {
                 <p>Error loading discussions: {discussionsState.error}</p>
               </div>
             ) : (
-              discussions.map((discussion) => (
+              (discussions || []).map((discussion) => (
                 <div key={discussion.id} className="border border-gray-200 rounded-lg p-4 hover:border-vt-maroon transition-all duration-200 cursor-pointer">
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="font-semibold text-gray-900 hover:text-vt-maroon transition-colors duration-200">
-                      {discussion.title}
+                      {discussion.title || 'Untitled'}
                     </h3>
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <span className="flex items-center">
                         <svg className="mr-1 h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                           <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
                         </svg>
-                        {discussion.replies}
+                        {discussion.replies || 0}
                       </span>
                       <div className="flex items-center space-x-2">
                         <button className="flex items-center space-x-1 text-green-600 hover:text-green-700">
@@ -306,35 +379,39 @@ const Home = () => {
                             <path d="M7 10v12"></path>
                             <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path>
                           </svg>
-                          <span>{discussion.upvotes}</span>
+                          <span>{discussion.upvotes || 0}</span>
                         </button>
                         <button className="flex items-center space-x-1 text-red-600 hover:text-red-700">
                           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                             <path d="M17 14V2"></path>
                             <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"></path>
                           </svg>
-                          <span>{discussion.downvotes}</span>
+                          <span>{discussion.downvotes || 0}</span>
                         </button>
                       </div>
                     </div>
                   </div>
-                  <p className="text-gray-700 text-sm mb-3">{discussion.content}</p>
+                  <p className="text-gray-700 text-sm mb-3">{discussion.content || ''}</p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2 text-xs text-gray-500">
                       <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                         <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                       </svg>
-                      <span>{discussion.authorName}</span>
+                      <span>{discussion.authorName || 'Unknown'}</span>
                       <span>•</span>
-                      <span>{new Date(discussion.createdAt).toLocaleDateString()}</span>
+                      <span>{discussion.createdAt ? new Date(discussion.createdAt).toLocaleDateString() : 'Unknown date'}</span>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {discussion.tags.map((tag, index) => (
-                        <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                          {tag}
-                        </span>
-                      ))}
+                      {discussion.tags && discussion.tags.length > 0 ? (
+                        discussion.tags.map((tag, index) => (
+                          <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                            {tag}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-400">No tags</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -343,6 +420,95 @@ const Home = () => {
           </div>
         </div>
       </div>
+
+      {/* New Post Modal */}
+      {showNewPostModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Create New Post</h2>
+                <button
+                  onClick={() => {
+                    setShowNewPostModal(false);
+                    setNewPostTitle('');
+                    setNewPostContent('');
+                    setNewPostTags('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                    <path d="M18 6L6 18M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <form onSubmit={handleCreatePost} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newPostTitle}
+                  onChange={(e) => setNewPostTitle(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vt-maroon focus:border-transparent"
+                  placeholder="Enter post title..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Content <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={newPostContent}
+                  onChange={(e) => setNewPostContent(e.target.value)}
+                  rows={6}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vt-maroon focus:border-transparent"
+                  placeholder="Write your post content here..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tags (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={newPostTags}
+                  onChange={(e) => setNewPostTags(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vt-maroon focus:border-transparent"
+                  placeholder="e.g., assignment, help, study-group"
+                />
+                <p className="mt-1 text-xs text-gray-500">Separate multiple tags with commas</p>
+              </div>
+              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNewPostModal(false);
+                    setNewPostTitle('');
+                    setNewPostContent('');
+                    setNewPostTags('');
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={isSubmittingPost}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingPost || !newPostTitle.trim() || !newPostContent.trim()}
+                  className="px-4 py-2 bg-vt-maroon text-white rounded-lg hover:bg-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmittingPost ? 'Posting...' : 'Create Post'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
