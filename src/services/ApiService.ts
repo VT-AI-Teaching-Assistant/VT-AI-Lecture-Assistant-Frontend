@@ -164,7 +164,7 @@ export class ApiService {
 // Create singleton instance
 const apiConfig: ApiConfig = {
   baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:3167/api',
-  timeout: parseInt(process.env.REACT_APP_API_TIMEOUT || '10000'),
+  timeout: parseInt(process.env.REACT_APP_API_TIMEOUT || '50000'),
 };
 
 export const apiService = new ApiService(apiConfig);
