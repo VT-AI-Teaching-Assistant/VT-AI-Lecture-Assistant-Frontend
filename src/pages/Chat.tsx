@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
+import { PaperAirplaneIcon, MicrophoneIcon, DocumentTextIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useCourse } from '../context/CourseContext';
-import { qaApiService } from '../api/qa';
+import { qaApiService, SourceInfo } from '../api/qa';
 import { formatMarkdown } from '../utils/markdownFormatter';
 
 type ChatMessage = {
@@ -9,6 +9,7 @@ type ChatMessage = {
   text: string;
   isUser: boolean;
   timestamp: string;
+  sources?: SourceInfo[] | null;
 };
 
 const Chat = () => {
@@ -16,6 +17,8 @@ const Chat = () => {
   const [inputValue, setInputValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showFullChat, setShowFullChat] = useState<boolean>(false);
+  const [showSourcesModal, setShowSourcesModal] = useState<boolean>(false);
+  const [selectedSources, setSelectedSources] = useState<SourceInfo[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const { selectedCourse } = useCourse();
@@ -44,7 +47,8 @@ const Chat = () => {
         id: Date.now(),
         text: response.answer,
         isUser: false,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        sources: response.sources
       };
       
       setMessages((prev) => [...prev, aiMessage]);
@@ -64,6 +68,49 @@ const Chat = () => {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleViewSources = (sources: SourceInfo[]) => {
+    setSelectedSources(sources);
+    setShowSourcesModal(true);
+  };
+
+  const getSourceTypeIcon = (sourceType: string) => {
+    switch (sourceType?.toLowerCase()) {
+      case 'notes':
+        return '📝';
+      case 'syllabus':
+        return '📋';
+      case 'assignment':
+        return '📚';
+      case 'announcement':
+        return '📢';
+      case 'module':
+        return '📦';
+      case 'page':
+        return '📄';
+      default:
+        return '📎';
+    }
+  };
+
+  const getSourceTypeColor = (sourceType: string) => {
+    switch (sourceType?.toLowerCase()) {
+      case 'notes':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'syllabus':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'assignment':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'announcement':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'module':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'page':
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -253,15 +300,27 @@ const Chat = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center space-x-2 mt-2 px-2">
+                  <div className="flex items-center space-x-3 mt-2 px-2">
                     <span className="text-xs text-gray-500">{message.timestamp}</span>
                     {!message.isUser && (
-                      <button className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                          <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
-                          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
-                        </svg>
-                      </button>
+                      <>
+                        <button className="text-xs text-gray-400 hover:text-gray-600 transition-colors" title="Copy">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                          </svg>
+                        </button>
+                        {message.sources && message.sources.length > 0 && (
+                          <button
+                            onClick={() => handleViewSources(message.sources!)}
+                            className="flex items-center space-x-1 text-xs text-vt-maroon hover:text-red-800 transition-colors font-medium bg-vt-maroon/10 hover:bg-vt-maroon/20 px-2 py-1 rounded-full"
+                            title="View sources used for this answer"
+                          >
+                            <DocumentTextIcon className="w-3 h-3" />
+                            <span>View Sources ({message.sources.length})</span>
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -335,6 +394,94 @@ const Chat = () => {
           </p>
         </div>
       </div>
+
+      {/* Sources Modal */}
+      {showSourcesModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => setShowSourcesModal(false)}
+          />
+          
+          {/* Modal */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative w-full max-w-2xl transform transition-all">
+              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-vt-maroon to-red-700 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <DocumentTextIcon className="h-6 w-6 text-white" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">Sources Used</h3>
+                        <p className="text-sm text-white/80">{selectedSources.length} source{selectedSources.length !== 1 ? 's' : ''} referenced for this answer</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowSourcesModal(false)}
+                      className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                    >
+                      <XMarkIcon className="h-6 w-6 text-white" />
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Sources List */}
+                <div className="max-h-[60vh] overflow-y-auto p-4 space-y-3">
+                  {selectedSources.map((source, index) => (
+                    <div 
+                      key={index}
+                      className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-vt-maroon/30 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <span className="text-2xl">{getSourceTypeIcon(source.sourceType)}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getSourceTypeColor(source.sourceType)}`}>
+                              {source.sourceType?.charAt(0).toUpperCase() + source.sourceType?.slice(1) || 'Source'}
+                            </span>
+                            {source.relevanceScore && (
+                              <span className="text-xs text-gray-500">
+                                {Math.round(source.relevanceScore * 100)}% match
+                              </span>
+                            )}
+                          </div>
+                          
+                          <h4 className="font-semibold text-gray-900 text-sm mb-1 truncate">
+                            {source.title || source.fileName || `${source.sourceType} ${source.sourceId}`}
+                          </h4>
+                          
+                          {source.fileName && source.title !== source.fileName && (
+                            <p className="text-xs text-gray-500 mb-2">
+                              📁 {source.fileName}
+                            </p>
+                          )}
+                          
+                          {source.excerpt && (
+                            <div className="bg-white rounded-lg p-3 border border-gray-100 mt-2">
+                              <p className="text-xs text-gray-600 leading-relaxed italic">
+                                "{source.excerpt}"
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
+                  <p className="text-xs text-gray-500 text-center">
+                    These sources were used by the AI to generate the answer. Always verify important information.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
