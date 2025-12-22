@@ -94,23 +94,22 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
+  // Single function to load all course data from one API call
   const loadAvailableCourses = useCallback(async () => {
     if (!user) return;
     
     setIsLoading(true);
     try {
-      // Fetch user profile with available courses
+      // Fetch user profile with ALL course data in a single call
       const response = await apiService.get<{ success: boolean; data: any }>('/user/profile');
 
       if (response.success && response.data) {
         const data = response.data;
         
-        console.log('CourseContext - Raw response data:', data);
+        console.log('CourseContext - Profile data loaded (single call)');
         
         // Canvas courses available for registration (not yet registered)
         const availableCanvasCourses = data.canvasEnrollments || [];
-        console.log('CourseContext - availableCanvasCourses:', availableCanvasCourses);
-        
         const formattedAvailableCourses: Course[] = availableCanvasCourses.map((c: any) => ({
           id: c.course_id.toString(),
           course_id: c.course_id,
@@ -119,37 +118,13 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
           title: c.course_name || '',
           instructorId: user.entityId.toString()
         }));
-        
-        console.log('CourseContext - formattedAvailableCourses:', formattedAvailableCourses);
         setAvailableCourses(formattedAvailableCourses);
-        
-        // Load registered courses separately
-        await loadRegisteredCourses();
-      }
-    } catch (error) {
-      console.error('Error loading available courses:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
-
-  const loadRegisteredCourses = useCallback(async () => {
-    if (!user) return;
-    
-    try {
-      // Fetch user profile with registered courses
-      const response = await apiService.get<{ success: boolean; data: any }>('/user/profile');
-
-      if (response.success && response.data) {
-        const data = response.data;
         
         // For instructors: use registeredCourses (courses they teach)
         // For students: use enrolledCourses (courses they're enrolled in)
         const coursesData = user.role === 'student' 
           ? (data.enrolledCourses || []) 
           : (data.registeredCourses || []);
-        
-        console.log('CourseContext - Courses for', user.role + ':', coursesData);
         
         const formattedCourses: Course[] = coursesData.map((c: any) => ({
           id: c.localCourseId?.toString() || c.courseId.toString(),
@@ -160,7 +135,6 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
           instructorId: user.role === 'instructor' ? user.entityId.toString() : undefined
         }));
         
-        console.log('CourseContext - Formatted courses:', formattedCourses);
         setRegisteredCourses(formattedCourses);
         
         // If we have a selected course ID but no details, populate from registered courses
@@ -172,22 +146,31 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     } catch (error) {
-      console.error('Error loading registered courses:', error);
+      console.error('Error loading courses:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, [user, selectedCourse]);
+
+  // Alias for backward compatibility - now just calls the unified loader
+  const loadRegisteredCourses = useCallback(async () => {
+    // Just call loadAvailableCourses which loads everything
+    await loadAvailableCourses();
+  }, [loadAvailableCourses]);
 
   const clearCourseContext = useCallback(async () => {
     setSelectedCourseState(null);
     // Backend will handle clearing context if needed
   }, []);
 
-  // Load available courses on mount
+  // Load available courses on mount - only when user changes, not on every render
   useEffect(() => {
     if (user) {
-      console.log('CourseContext - Loading available courses on mount');
+      console.log('CourseContext - Loading courses on mount (user:', user.id, ')');
       loadAvailableCourses();
     }
-  }, [user, loadAvailableCourses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Only trigger when user ID changes, not loadAvailableCourses
 
   const isCourseContextSet = Boolean(selectedCourse);
 

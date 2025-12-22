@@ -49,11 +49,14 @@ const Profile = () => {
     }
   }, [location]);
 
-  // Load profile data on mount
+  // Load profile data on mount - only if not already loaded by CourseContext
   useEffect(() => {
-    loadProfileData();
-    // Note: loadAvailableCourses() is called from CourseContext, no need to call it here
-  }, []);
+    // Only load if we don't have data yet and CourseContext isn't loading
+    if (!profileData && !courseLoading) {
+      loadProfileData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseLoading]);
 
   // Auto-switch to appropriate tab based on user state
   useEffect(() => {
