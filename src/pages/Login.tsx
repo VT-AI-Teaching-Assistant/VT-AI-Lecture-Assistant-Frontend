@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/ApiService';
+import { getAuthorizationUrl } from '../config/oauth';
 
 const Login = () => {
   const { login, isAuthenticated } = useAuth();
@@ -36,6 +37,16 @@ const Login = () => {
     } else {
       setError(res.message);
     }
+  };
+
+  const handleOAuthLogin = () => {
+    // Generate a random state for CSRF protection
+    const state = Math.random().toString(36).substring(7);
+    sessionStorage.setItem('oauth_state', state);
+    
+    // Redirect to OAuth authorization endpoint
+    const authUrl = getAuthorizationUrl(state);
+    window.location.href = authUrl;
   };
 
   return (
@@ -128,6 +139,27 @@ const Login = () => {
                 {isLoading ? 'Signing in…' : 'Sign in'}
               </button>
             </form>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">or</span>
+              </div>
+            </div>
+
+            {/* OAuth Login Button */}
+            <button
+              onClick={handleOAuthLogin}
+              className="w-full py-2 px-4 border-2 border-vt-maroon text-vt-maroon rounded-lg font-medium hover:bg-vt-maroon hover:text-white transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+              </svg>
+              Sign in with Canvas OAuth
+            </button>
 
             {/* Demo accounts section removed; info available via (i) button */}
           </div>

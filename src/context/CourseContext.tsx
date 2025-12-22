@@ -40,20 +40,25 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(true);
       try {
         // Fetch last selected course from backend
-        const response = await apiService.get<{ success: boolean; data: { courseId: number; courseName: string } | null }>('/courses/context');
+        const response = await apiService.get<{ success: boolean; data: { courseId: number | null; courseName: string | null } | null }>('/courses/context');
         
-        if (response.success && response.data) {
-          // Set selected course from backend
+        if (response.success && response.data && response.data.courseId) {
+          // Set selected course from backend (only if courseId is not null)
           setSelectedCourseState({
             id: response.data.courseId.toString(),
             course_id: response.data.courseId,
             code: '', // Will be populated when loading available courses
-            title: response.data.courseName,
+            title: response.data.courseName || '',
           });
+        } else {
+          // No course context set yet (normal on first login)
+          console.log('No course context found - user needs to select a course');
+          setSelectedCourseState(null);
         }
       } catch (error) {
         console.error('Error loading course context:', error);
         // Not a critical error, user can select course manually
+        setSelectedCourseState(null);
       } finally {
         setIsLoading(false);
       }

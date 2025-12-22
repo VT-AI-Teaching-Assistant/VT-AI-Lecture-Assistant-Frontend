@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
+import OAuthCallback from './pages/OAuthCallback';
 import Landing from './pages/Landing';
 import InstructorUpload from './pages/InstructorUpload';
 import { AuthProvider } from './context/AuthContext';
@@ -38,6 +39,7 @@ function App() {
                 <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/auth/callback" element={<OAuthCallback />} />
                 <Route
                   path="/*"
                   element={
