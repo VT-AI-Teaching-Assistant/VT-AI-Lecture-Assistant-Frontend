@@ -49,14 +49,18 @@ const Profile = () => {
     }
   }, [location]);
 
-  // Load profile data on mount - only if not already loaded by CourseContext
+  // Load profile data only once - after CourseContext finishes loading
+  // This prevents duplicate /user/profile calls
+  const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
+  
   useEffect(() => {
-    // Only load if we don't have data yet and CourseContext isn't loading
-    if (!profileData && !courseLoading) {
+    // Only load profile once, after CourseContext has finished its initial load
+    if (!hasLoadedProfile && !courseLoading && user) {
+      setHasLoadedProfile(true);
       loadProfileData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseLoading]);
+  }, [courseLoading, user]);
 
   // Auto-switch to appropriate tab based on user state
   useEffect(() => {
@@ -114,17 +118,20 @@ const Profile = () => {
     setSuccess(null);
     
     try {
-      const response = await apiService.post<{ success: boolean; data: any; message?: string }>('/courses/register', {
-        courseIds: Array.from(selectedCanvasCourses).map(id => id.toString())
-      });
+      // Course registration can take a while (fetches modules, publishes SNS notifications)
+      // Use a longer timeout (120 seconds) for this specific operation
+      const response = await apiService.post<{ success: boolean; data: any; message?: string }>(
+        '/courses/register', 
+        { courseIds: Array.from(selectedCanvasCourses).map(id => id.toString()) },
+        { timeout: 120000 } // 120 seconds timeout for slow registration
+      );
       
       if (response.success) {
         setSuccess(`Successfully registered ${response.data.registeredCourses?.length || 0} course(s)`);
         setSelectedCanvasCourses(new Set());
         
-        // Refresh user data and profile
-        await refreshUser();
-        await loadProfileData();
+        // Refresh all data with a single profile call via CourseContext
+        // (loadAvailableCourses loads everything from /user/profile)
         await loadAvailableCourses();
         
         // Switch to context tab
