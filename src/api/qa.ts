@@ -44,6 +44,13 @@ export class QaApiService {
     return QaApiService.instance;
   }
 
+  // QA requests can take longer due to:
+  // 1. Embedding generation
+  // 2. Vector search
+  // 3. LLM response generation (Claude)
+  // Use 120 second timeout for chat operations
+  private readonly QA_TIMEOUT = 120000; // 120 seconds
+
   async askQuestion(question: string, courseId: number): Promise<QaResponse> {
     try {
       const request: QaRequest = {
@@ -51,8 +58,12 @@ export class QaApiService {
         courseId
       };
 
-      const response = await apiService.post<ApiResponse<QaResponse>>('/qa/ask', request);
-      
+      const response = await apiService.post<ApiResponse<QaResponse>>(
+        '/qa/ask',
+        request,
+        { timeout: this.QA_TIMEOUT }
+      );
+
       if (response.success) {
         return response.data;
       } else {

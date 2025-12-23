@@ -178,7 +178,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshUser = useCallback(async () => {
     await refreshUserInfo();
-  }, []);
+  }, [refreshUserInfo]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, isAuthenticated: Boolean(user), isLoading, login, logout, refreshUser }),
