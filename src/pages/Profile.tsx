@@ -49,18 +49,21 @@ const Profile = () => {
     }
   }, [location]);
 
-  // Load profile data only once - after CourseContext finishes loading
-  // This prevents duplicate /user/profile calls
-  const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
-  
+  // Track which user's profile has been loaded to prevent duplicate calls
+  // and ensure reload when user changes
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+
+  // Load profile data when user changes or on mount
   useEffect(() => {
-    // Only load profile once, after CourseContext has finished its initial load
-    if (!hasLoadedProfile && !courseLoading && user) {
-      setHasLoadedProfile(true);
-      loadProfileData();
+    // Skip if no user or if already loaded for this user
+    if (!user || loadedForUserId === user.id) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseLoading, user]);
+
+    // Mark as loading for this user to prevent duplicate calls
+    setLoadedForUserId(user.id);
+    loadProfileData();
+  }, [user?.id]); // Only re-run when user ID changes
 
   // Auto-switch to appropriate tab based on user state
   useEffect(() => {
@@ -129,11 +132,17 @@ const Profile = () => {
       if (response.success) {
         setSuccess(`Successfully registered ${response.data.registeredCourses?.length || 0} course(s)`);
         setSelectedCanvasCourses(new Set());
-        
-        // Refresh all data with a single profile call via CourseContext
-        // (loadAvailableCourses loads everything from /user/profile)
+
+        // CRITICAL: Refresh user in AuthContext to update hasRegisteredCourses flag
+        // This prevents ProtectedRoute from redirecting back to profile
+        await refreshUser();
+
+        // Refresh course data via CourseContext
         await loadAvailableCourses();
-        
+
+        // Also reload profile data to update local state
+        await loadProfileData();
+
         // Switch to context tab
         setTimeout(() => setActiveTab('context'), 2000);
       } else {
@@ -151,7 +160,7 @@ const Profile = () => {
     try {
       setError(null);
       console.log('Setting course context for course:', course);
-      
+
       await setSelectedCourse({
         id: course.localCourseId.toString(),
         course_id: course.localCourseId,
@@ -159,7 +168,10 @@ const Profile = () => {
         title: course.courseName,
         instructorId: user?.role === 'instructor' ? user?.entityId.toString() : undefined
       });
-      
+
+      // Refresh user to update lastCourseId and keep auth state in sync
+      await refreshUser();
+
       console.log('Course context set successfully');
       setSuccess(`Course context set to: ${course.courseName}`);
     } catch (err: any) {

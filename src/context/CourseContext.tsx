@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { apiService } from '../services/ApiService';
 
@@ -32,40 +32,12 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { user, isAuthenticated } = useAuth();
 
-  // Load course context from backend on mount (when user is authenticated)
-  useEffect(() => {
-    const loadCourseContext = async () => {
-      if (!isAuthenticated || !user) return;
-      
-      setIsLoading(true);
-      try {
-        // Fetch last selected course from backend
-        const response = await apiService.get<{ success: boolean; data: { courseId: number | null; courseName: string | null } | null }>('/courses/context');
-        
-        if (response.success && response.data && response.data.courseId) {
-          // Set selected course from backend (only if courseId is not null)
-          setSelectedCourseState({
-            id: response.data.courseId.toString(),
-            course_id: response.data.courseId,
-            code: '', // Will be populated when loading available courses
-            title: response.data.courseName || '',
-          });
-        } else {
-          // No course context set yet (normal on first login)
-          console.log('No course context found - user needs to select a course');
-          setSelectedCourseState(null);
-        }
-      } catch (error) {
-        console.error('Error loading course context:', error);
-        // Not a critical error, user can select course manually
-        setSelectedCourseState(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCourseContext();
-  }, [isAuthenticated, user]);
+  // Track if initial load has been done for current user to prevent duplicate calls
+  const initialLoadDoneRef = useRef<string | null>(null);
+  // Store pending course ID to populate details after loading courses
+  const pendingCourseIdRef = useRef<number | null>(null);
+  // Track if currently loading to prevent concurrent requests
+  const isLoadingRef = useRef(false);
 
   const setSelectedCourse = useCallback(async (course: Course | null) => {
     if (!course) {
@@ -75,39 +47,44 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       console.log('CourseContext - Setting course context:', course);
-      console.log('CourseContext - Sending courseId:', course.course_id);
-      
+
       // Save to backend
-      const response = await apiService.post('/courses/context', {
+      await apiService.post('/courses/context', {
         courseId: course.course_id
       });
-      
-      console.log('CourseContext - Backend response:', response);
-      
+
       // Update local state
       setSelectedCourseState(course);
       console.log('CourseContext - Course context set successfully');
     } catch (error: any) {
       console.error('CourseContext - Error setting course context:', error);
-      console.error('CourseContext - Error response:', error.response?.data);
       throw error;
     }
   }, []);
 
-  // Single function to load all course data from one API call
+  // Load all course data from a single API call
+  // Note: This function is stable (no dependencies that change) to avoid infinite loops
   const loadAvailableCourses = useCallback(async () => {
     if (!user) return;
-    
+
+    // Prevent concurrent requests
+    if (isLoadingRef.current) {
+      console.log('CourseContext - Skipping duplicate load request');
+      return;
+    }
+
+    isLoadingRef.current = true;
     setIsLoading(true);
+
     try {
       // Fetch user profile with ALL course data in a single call
       const response = await apiService.get<{ success: boolean; data: any }>('/user/profile');
 
       if (response.success && response.data) {
         const data = response.data;
-        
-        console.log('CourseContext - Profile data loaded (single call)');
-        
+
+        console.log('CourseContext - Profile data loaded successfully');
+
         // Canvas courses available for registration (not yet registered)
         const availableCanvasCourses = data.canvasEnrollments || [];
         const formattedAvailableCourses: Course[] = availableCanvasCourses.map((c: any) => ({
@@ -119,13 +96,13 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
           instructorId: user.entityId.toString()
         }));
         setAvailableCourses(formattedAvailableCourses);
-        
+
         // For instructors: use registeredCourses (courses they teach)
         // For students: use enrolledCourses (courses they're enrolled in)
-        const coursesData = user.role === 'student' 
-          ? (data.enrolledCourses || []) 
+        const coursesData = user.role === 'student'
+          ? (data.enrolledCourses || [])
           : (data.registeredCourses || []);
-        
+
         const formattedCourses: Course[] = coursesData.map((c: any) => ({
           id: c.localCourseId?.toString() || c.courseId.toString(),
           course_id: c.localCourseId || c.courseId, // Use local DB ID
@@ -134,43 +111,101 @@ export const CourseProvider = ({ children }: { children: React.ReactNode }) => {
           title: c.courseName || '',
           instructorId: user.role === 'instructor' ? user.entityId.toString() : undefined
         }));
-        
+
         setRegisteredCourses(formattedCourses);
-        
-        // If we have a selected course ID but no details, populate from registered courses
-        if (selectedCourse && !selectedCourse.code) {
-          const fullCourse = formattedCourses.find(c => c.course_id === selectedCourse.course_id);
+
+        // If we have a pending course ID to populate, find and set the full course details
+        if (pendingCourseIdRef.current) {
+          const fullCourse = formattedCourses.find(c => c.course_id === pendingCourseIdRef.current);
           if (fullCourse) {
             setSelectedCourseState(fullCourse);
+            console.log('CourseContext - Populated selected course details:', fullCourse.title);
           }
+          pendingCourseIdRef.current = null;
         }
       }
     } catch (error) {
-      console.error('Error loading courses:', error);
+      console.error('CourseContext - Error loading courses:', error);
     } finally {
+      isLoadingRef.current = false;
       setIsLoading(false);
     }
-  }, [user, selectedCourse]);
+  }, [user]); // Only depends on user - removed selectedCourse to prevent circular dependencies
 
   // Alias for backward compatibility - now just calls the unified loader
   const loadRegisteredCourses = useCallback(async () => {
-    // Just call loadAvailableCourses which loads everything
     await loadAvailableCourses();
   }, [loadAvailableCourses]);
 
   const clearCourseContext = useCallback(async () => {
     setSelectedCourseState(null);
-    // Backend will handle clearing context if needed
+    pendingCourseIdRef.current = null;
   }, []);
 
-  // Load available courses on mount - only when user changes, not on every render
+  // Single combined effect for initialization - handles both course context and profile loading
   useEffect(() => {
-    if (user) {
-      console.log('CourseContext - Loading courses on mount (user:', user.id, ')');
-      loadAvailableCourses();
+    const initializeCourseData = async () => {
+      // Skip if not authenticated or no user
+      if (!isAuthenticated || !user) {
+        return;
+      }
+
+      // Skip if already loaded for this user (prevents duplicate calls)
+      if (initialLoadDoneRef.current === user.id) {
+        return;
+      }
+
+      console.log('CourseContext - Initializing for user:', user.id);
+      initialLoadDoneRef.current = user.id;
+
+      setIsLoading(true);
+
+      try {
+        // Step 1: Load saved course context from backend
+        const contextResponse = await apiService.get<{
+          success: boolean;
+          data: { courseId: number | null; courseName: string | null } | null
+        }>('/courses/context');
+
+        if (contextResponse.success && contextResponse.data && contextResponse.data.courseId) {
+          // Store the course ID - we'll populate full details after loading courses
+          pendingCourseIdRef.current = contextResponse.data.courseId;
+
+          // Set partial course info for now (title only)
+          setSelectedCourseState({
+            id: contextResponse.data.courseId.toString(),
+            course_id: contextResponse.data.courseId,
+            code: '',
+            title: contextResponse.data.courseName || '',
+          });
+        } else {
+          console.log('CourseContext - No saved course context found');
+          setSelectedCourseState(null);
+        }
+
+        // Step 2: Load profile with courses (this will populate full course details)
+        await loadAvailableCourses();
+
+      } catch (error) {
+        console.error('CourseContext - Error during initialization:', error);
+        // Reset loading state on error
+        setIsLoading(false);
+      }
+    };
+
+    initializeCourseData();
+  }, [isAuthenticated, user, loadAvailableCourses]);
+
+  // Reset refs when user changes or logs out
+  useEffect(() => {
+    if (!user) {
+      initialLoadDoneRef.current = null;
+      pendingCourseIdRef.current = null;
+      setSelectedCourseState(null);
+      setAvailableCourses([]);
+      setRegisteredCourses([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]); // Only trigger when user ID changes, not loadAvailableCourses
+  }, [user]);
 
   const isCourseContextSet = Boolean(selectedCourse);
 
