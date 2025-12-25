@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { exchangeCodeForToken } from '../config/oauth';
 import { apiService } from '../services/ApiService';
-import { useAuth, AuthUser } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * OAuth Callback Handler
  * This component handles the redirect from Canvas OAuth (fake_oauth_canvas)
- * and exchanges the authorization code for tokens
+ * and sends the authorization code to the backend for secure token exchange.
+ *
+ * Security: The token exchange now happens on the backend, keeping the
+ * client_secret secure and not exposed in frontend code.
  */
 const OAuthCallback = () => {
   const navigate = useNavigate();
@@ -37,45 +39,34 @@ const OAuthCallback = () => {
           return;
         }
 
-        console.log('Exchanging authorization code for Canvas access token...');
-        
-        // Step 1: Exchange authorization code for Canvas access token
-        const tokenResponse = await exchangeCodeForToken(code);
-        
-        console.log('Canvas token received:', {
-          hasAccessToken: !!tokenResponse.access_token,
-          user: tokenResponse.user
-        });
-
-        // Step 2: Send Canvas access token to backend for JWT token generation
-        const response = await apiService.post<{ 
-          success: boolean; 
-          data: { accessToken: string; user: any }; 
-          message?: string 
-        }>('/auth/oauth/login', {
-          canvasAccessToken: tokenResponse.access_token,
-          canvasUser: tokenResponse.user
+        // Send authorization code to backend for secure token exchange
+        // The backend handles the token exchange, keeping client_secret secure
+        const response = await apiService.post<{
+          success: boolean;
+          data: { accessToken: string; user: any };
+          message?: string
+        }>('/auth/oauth/callback', {
+          code: code,
+          state: state
         });
 
         if (response.success && response.data) {
-          console.log('JWT tokens received from backend');
-          
           // Store JWT access token in memory
           apiService.setToken(response.data.accessToken);
-          
+
           // Store minimal user info for session persistence
           const userData = response.data.user;
-          localStorage.setItem('vt-ai-auth-user', JSON.stringify({ 
-            id: userData.id, 
-            email: userData.email, 
-            role: userData.role 
+          localStorage.setItem('vt-ai-auth-user', JSON.stringify({
+            id: userData.id,
+            email: userData.email,
+            role: userData.role
           }));
 
           // Refresh user profile to update context
           await refreshUser();
 
           setStatus('success');
-          
+
           // Redirect to profile page after a brief delay
           setTimeout(() => {
             navigate('/profile');
