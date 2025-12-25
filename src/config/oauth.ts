@@ -1,27 +1,27 @@
 /**
  * OAuth Configuration for Canvas LMS Integration
  * Using fake_oauth_canvas for development/testing
+ *
+ * SECURITY NOTE: Token exchange is now handled by the backend.
+ * The client_secret is never exposed to the frontend.
  */
 
 export const oauthConfig = {
   // fake_oauth_canvas server URL
   authServerUrl: process.env.REACT_APP_OAUTH_SERVER_URL || 'http://localhost:8457',
-  
-  // OAuth client credentials
+
+  // OAuth client ID (public, safe to include in frontend)
   clientId: process.env.REACT_APP_OAUTH_CLIENT_ID || 'vt-ai-lecture-assistant',
-  clientSecret: process.env.REACT_APP_OAUTH_CLIENT_SECRET || 'fake-client-secret',
-  
+
   // Redirect URI for OAuth callback
   redirectUri: process.env.REACT_APP_OAUTH_REDIRECT_URI || 'http://localhost:3000/auth/callback',
-  
+
   // OAuth scopes (not strictly enforced by fake_oauth_canvas)
   scope: 'url:GET|/api/v1/courses url:GET|/api/v1/users/:user_id',
-  
+
   // OAuth endpoints
   endpoints: {
     authorize: '/login/oauth2/auth',
-    token: '/login/oauth2/token',
-    userInfo: '/api/v1/users/self',
   }
 };
 
@@ -44,41 +44,11 @@ export function getAuthorizationUrl(state?: string): string {
 }
 
 /**
- * Exchanges authorization code for access token
+ * Generates a cryptographically secure state parameter for CSRF protection
  */
-export interface TokenResponse {
-  access_token: string;
-  token_type: string;
-  refresh_token?: string;
-  expires_in: number;
-  user?: {
-    id: number;
-    name: string;
-    email?: string;
-  };
-}
-
-export async function exchangeCodeForToken(code: string): Promise<TokenResponse> {
-  const params = new URLSearchParams({
-    grant_type: 'authorization_code',
-    client_id: oauthConfig.clientId,
-    client_secret: oauthConfig.clientSecret,
-    redirect_uri: oauthConfig.redirectUri,
-    code: code,
-  });
-
-  const response = await fetch(`${oauthConfig.authServerUrl}${oauthConfig.endpoints.token}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: params.toString(),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to exchange authorization code for token');
-  }
-
-  return await response.json();
+export function generateOAuthState(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 

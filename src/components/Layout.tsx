@@ -50,7 +50,6 @@ const Layout = ({ children }: LayoutProps) => {
     { name: 'Home', href: '/home', icon: HomeIcon },
     { name: 'Chat with AI', href: '/chat', icon: ChatBubbleLeftRightIcon },
     { name: 'Lectures', href: '/lectures', icon: AcademicCapIcon },
-    { name: 'Grades', href: '/grades', icon: ChartBarIcon },
     { name: 'FAQ', href: '/faq', icon: QuestionMarkCircleIcon },
   ];
 

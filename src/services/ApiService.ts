@@ -14,6 +14,14 @@ export class ApiService {
   private isRefreshing: boolean = false;
   private failedQueue: any[] = [];
 
+  // Activity-based refresh configuration
+  private lastRefreshTime: number = Date.now();
+  private lastActivityTime: number = Date.now();
+  private readonly REFRESH_THRESHOLD_MS = 10 * 60 * 1000; // Refresh if token is 10+ minutes old
+  private readonly ACTIVITY_CHECK_INTERVAL_MS = 60 * 1000; // Check activity every 1 minute
+  private activityCheckInterval: NodeJS.Timeout | null = null;
+  private activityListenersAttached: boolean = false;
+
   constructor(config: ApiConfig) {
     this.client = axios.create({
       baseURL: config.baseURL,
@@ -75,21 +83,17 @@ export class ApiService {
           }
 
           originalRequest._retry = true;
-          this.isRefreshing = true;
 
           try {
             await this.refreshToken();
             this.processQueue(null, this.token);
-            this.isRefreshing = false;
             // Retry the original request with new token
             originalRequest.headers.Authorization = `Bearer ${this.token}`;
             return this.client.request(originalRequest);
           } catch (refreshError) {
             this.processQueue(refreshError, null);
-            this.isRefreshing = false;
-            // Refresh failed, redirect to login
-            this.clearToken();
-            window.location.href = '/login';
+            // Refresh failed - session expired, redirect with friendly message
+            this.handleSessionExpired();
             return Promise.reject(refreshError);
           }
         }
@@ -101,8 +105,9 @@ export class ApiService {
 
   setToken(token: string): void {
     this.token = token;
-    // Don't store token in localStorage for security
-    // Token is in memory only, refresh token is in HTTP-only cookie
+    this.lastRefreshTime = Date.now();
+    // Start activity monitoring when token is set
+    this.startActivityMonitoring();
   }
 
   getToken(): string | null {
@@ -111,22 +116,126 @@ export class ApiService {
 
   clearToken(): void {
     this.token = null;
+    // Stop activity monitoring
+    this.stopActivityMonitoring();
     // Clear any auth-related localStorage items
     localStorage.removeItem('auth_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('vt-ai-auth-user');
+  }
+
+  /**
+   * Start monitoring user activity for proactive token refresh.
+   * This prevents unexpected session expiry for active users.
+   */
+  private startActivityMonitoring(): void {
+    if (typeof window === 'undefined') return;
+
+    // Attach activity listeners if not already attached
+    if (!this.activityListenersAttached) {
+      const activityHandler = this.handleUserActivity.bind(this);
+      window.addEventListener('click', activityHandler, { passive: true });
+      window.addEventListener('keydown', activityHandler, { passive: true });
+      window.addEventListener('scroll', activityHandler, { passive: true });
+      window.addEventListener('mousemove', this.throttledActivityHandler.bind(this), { passive: true });
+      this.activityListenersAttached = true;
+    }
+
+    // Start periodic check for proactive refresh
+    if (!this.activityCheckInterval) {
+      this.activityCheckInterval = setInterval(() => {
+        this.checkAndRefreshIfNeeded();
+      }, this.ACTIVITY_CHECK_INTERVAL_MS);
+    }
+  }
+
+  /**
+   * Stop activity monitoring (called on logout/token clear)
+   */
+  private stopActivityMonitoring(): void {
+    if (this.activityCheckInterval) {
+      clearInterval(this.activityCheckInterval);
+      this.activityCheckInterval = null;
+    }
+    // Note: We don't remove event listeners to avoid complexity
+    // They will simply do nothing when token is null
+  }
+
+  /**
+   * Handle user activity - update last activity timestamp
+   */
+  private handleUserActivity(): void {
+    this.lastActivityTime = Date.now();
+  }
+
+  /**
+   * Throttled handler for high-frequency events like mousemove
+   */
+  private mouseMoveThrottleTime: number = 0;
+  private throttledActivityHandler(): void {
+    const now = Date.now();
+    if (now - this.mouseMoveThrottleTime > 5000) { // Throttle to every 5 seconds
+      this.mouseMoveThrottleTime = now;
+      this.handleUserActivity();
+    }
+  }
+
+  /**
+   * Check if we should proactively refresh the token.
+   * Refreshes if:
+   * 1. User has been active recently (within last 2 minutes)
+   * 2. Token is older than REFRESH_THRESHOLD_MS (10 minutes)
+   * 3. Not already refreshing
+   */
+  private async checkAndRefreshIfNeeded(): Promise<void> {
+    if (!this.token || this.isRefreshing) return;
+
+    const now = Date.now();
+    const timeSinceLastRefresh = now - this.lastRefreshTime;
+    const timeSinceLastActivity = now - this.lastActivityTime;
+
+    // Only refresh if user was active in the last 2 minutes
+    const isUserActive = timeSinceLastActivity < 2 * 60 * 1000;
+    // And token is getting stale (older than threshold)
+    const isTokenStale = timeSinceLastRefresh > this.REFRESH_THRESHOLD_MS;
+
+    if (isUserActive && isTokenStale) {
+      try {
+        await this.refreshToken();
+      } catch (error) {
+        // Proactive refresh failed - don't redirect yet
+        // The reactive refresh on 401 will handle it
+        console.debug('Proactive token refresh failed, will retry on next API call');
+      }
+    }
   }
 
   private async refreshToken(): Promise<void> {
-    // Refresh token is in HTTP-only cookie, no need to send it in body
-    const response = await this.client.post('/auth/refresh');
+    this.isRefreshing = true;
+    try {
+      // Refresh token is in HTTP-only cookie, no need to send it in body
+      const response = await this.client.post('/auth/refresh');
 
-    // Extract access token from response
-    const responseData = response.data;
-    if (responseData && responseData.data && responseData.data.accessToken) {
-      this.setToken(responseData.data.accessToken);
-    } else {
-      throw new Error('No access token in refresh response');
+      // Extract access token from response
+      const responseData = response.data;
+      if (responseData && responseData.data && responseData.data.accessToken) {
+        this.token = responseData.data.accessToken;
+        this.lastRefreshTime = Date.now();
+      } else {
+        throw new Error('No access token in refresh response');
+      }
+    } finally {
+      this.isRefreshing = false;
     }
+  }
+
+  /**
+   * Handle session expiry - redirect to login with friendly message
+   */
+  private handleSessionExpired(): void {
+    this.clearToken();
+    // Redirect to login with session expired flag for friendly message
+    window.location.href = '/login?sessionExpired=true';
   }
 
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {

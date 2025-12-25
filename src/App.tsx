@@ -15,7 +15,6 @@ import Home from './pages/Home';
 import Chat from './pages/Chat';
 import Lectures from './pages/Lectures';
 import LectureNotes from './pages/LectureNotes';
-import Grades from './pages/Grades';
 import FAQ from './pages/FAQ';
 import Analytics from './pages/Analytics';
 import StudentQuestionsDetail from './pages/StudentQuestionsDetail';
@@ -68,11 +67,6 @@ function App() {
                         <Route path="/lectures/:id/notes" element={
                           <ProtectedRoute>
                             <LectureNotes />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/grades" element={
-                          <ProtectedRoute>
-                            <Grades />
                           </ProtectedRoute>
                         } />
                         <Route path="/faq" element={
