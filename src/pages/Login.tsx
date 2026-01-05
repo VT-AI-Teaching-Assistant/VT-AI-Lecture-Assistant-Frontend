@@ -5,7 +5,7 @@ import { apiService } from '../services/ApiService';
 import { getAuthorizationUrl } from '../config/oauth';
 
 const Login = () => {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [email, setEmail] = useState('');
@@ -15,6 +15,17 @@ const Login = () => {
   const [showInfo, setShowInfo] = useState(false);
   const [backendStatus, setBackendStatus] = useState<string>('Unknown');
   const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
+
+  // If already authenticated, redirect to appropriate page
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user) {
+      if (user.role === 'instructor') {
+        navigate('/profile', { replace: true });
+      } else {
+        navigate('/home', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, authLoading, navigate]);
 
   // Check for session expired parameter on mount
   useEffect(() => {

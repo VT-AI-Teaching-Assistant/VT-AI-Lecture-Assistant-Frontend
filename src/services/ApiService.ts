@@ -272,10 +272,17 @@ export class ApiService {
 
 // Create singleton instance
 // Default timeout of 60 seconds for slow Canvas API operations
+if (!process.env.REACT_APP_API_BASE_URL) {
+  throw new Error('REACT_APP_API_BASE_URL environment variable is required. Please set it in your .env file.');
+}
+
 const apiConfig: ApiConfig = {
-  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:3167/api',
+  baseURL: process.env.REACT_APP_API_BASE_URL,
   timeout: parseInt(process.env.REACT_APP_API_TIMEOUT || '60000'),
 };
+
+// Log the baseURL for debugging (remove in production)
+console.log('API Base URL:', apiConfig.baseURL);
 
 export const apiService = new ApiService(apiConfig);
 

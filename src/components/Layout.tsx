@@ -13,7 +13,8 @@ import {
   Bars3Icon,
   XMarkIcon,
   ClockIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  DocumentIcon
 } from '@heroicons/react/24/outline';
 
 type LayoutProps = {
@@ -55,11 +56,15 @@ const Layout = ({ children }: LayoutProps) => {
 
   const navigation: NavigationItem[] =
     user?.role === 'instructor'
-      ? [...baseNavigation, 
+      ? [
+         ...baseNavigation.slice(0, 1), // Profile
+         { name: 'Knowledge Base', href: '/knowledge-base', icon: DocumentIcon },
+         ...baseNavigation.slice(1), // Home and rest
          { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
          { name: 'Disputes', href: '/disputes', icon: ExclamationTriangleIcon },
-         { name: 'Upload Transcript', href: '/instructor/upload', icon: AcademicCapIcon }]
-      : [...baseNavigation, 
+         { name: 'Upload Transcript', href: '/instructor/upload', icon: AcademicCapIcon }
+        ]
+      : [...baseNavigation,
          { name: 'History', href: '/history', icon: ClockIcon }];
 
   const isActive = (path: string): boolean => {
