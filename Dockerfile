@@ -1,0 +1,50 @@
+# Multi-stage build for React frontend
+# Stage 1: Build the React application
+FROM node:18-alpine AS build
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install ALL dependencies (including devDependencies needed for build)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build arguments for environment variables (baked into build)
+ARG REACT_APP_API_BASE_URL=/api
+ARG REACT_APP_API_TIMEOUT=30000
+ARG REACT_APP_OAUTH_SERVER_URL=https://mockcanvasoauth-production.up.railway.app
+ARG REACT_APP_OAUTH_CLIENT_ID=vt-ai-lecture-assistant
+ARG REACT_APP_OAUTH_REDIRECT_URI=http://vt-ai-ta-alb-1802072607.us-east-2.elb.amazonaws.com/auth/callback
+
+# Set environment variables for build
+ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
+ENV REACT_APP_API_TIMEOUT=$REACT_APP_API_TIMEOUT
+ENV REACT_APP_OAUTH_SERVER_URL=$REACT_APP_OAUTH_SERVER_URL
+ENV REACT_APP_OAUTH_CLIENT_ID=$REACT_APP_OAUTH_CLIENT_ID
+ENV REACT_APP_OAUTH_REDIRECT_URI=$REACT_APP_OAUTH_REDIRECT_URI
+
+# Build the application
+RUN npm run build
+
+# Stage 2: Serve with nginx
+FROM nginx:alpine
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy built assets from build stage
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

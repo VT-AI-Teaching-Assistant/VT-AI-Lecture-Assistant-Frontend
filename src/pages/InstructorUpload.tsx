@@ -407,6 +407,7 @@ const InstructorUpload = () => {
           <p className="text-xs text-gray-500">You can edit this text before saving it as a transcript.</p>
         </div>
       )}
+
     </div>
   );
 };

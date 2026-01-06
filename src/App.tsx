@@ -11,6 +11,7 @@ import { CourseSelectionProvider } from './context/CourseSelectionContext';
 import { UserProfileProvider } from './context/UserProfileContext';
 import { CourseProvider } from './context/CourseContext';
 import Profile from './pages/Profile';
+import KnowledgeBase from './pages/KnowledgeBase';
 import Home from './pages/Home';
 import Chat from './pages/Chat';
 import Lectures from './pages/Lectures';
@@ -52,6 +53,11 @@ function App() {
                         <Route path="/profile" element={
                           <ProtectedRoute>
                             <Profile />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/knowledge-base" element={
+                          <ProtectedRoute allow={["instructor"]}>
+                            <KnowledgeBase />
                           </ProtectedRoute>
                         } />
                         <Route path="/chat" element={
