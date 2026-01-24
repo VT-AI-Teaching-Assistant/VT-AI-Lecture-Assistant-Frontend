@@ -66,6 +66,13 @@ export class ApiService {
       async (error) => {
         const originalRequest = error.config;
 
+        // Check if Canvas re-authentication is required (Canvas OAuth token expired)
+        if (error.response?.status === 401 && this.isCanvasReauthRequired(error)) {
+          console.warn('Canvas re-authentication required');
+          this.handleCanvasReauthRequired();
+          return Promise.reject(error);
+        }
+
         // Don't retry refresh endpoint or if it's already a retry
         if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
           if (this.isRefreshing) {
@@ -236,6 +243,24 @@ export class ApiService {
     this.clearToken();
     // Redirect to login with session expired flag for friendly message
     window.location.href = '/login?sessionExpired=true';
+  }
+
+  /**
+   * Handle Canvas re-authentication required.
+   * This is called when the Canvas OAuth token has expired and cannot be refreshed.
+   */
+  private handleCanvasReauthRequired(): void {
+    // Redirect to login with Canvas re-auth flag
+    // The user needs to re-authenticate with Canvas OAuth
+    window.location.href = '/login?canvasReauthRequired=true';
+  }
+
+  /**
+   * Check if an error response indicates Canvas re-authentication is required
+   */
+  private isCanvasReauthRequired(error: any): boolean {
+    const errorData = error.response?.data?.data;
+    return errorData?.errorCode === 'CANVAS_REAUTH_REQUIRED';
   }
 
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {

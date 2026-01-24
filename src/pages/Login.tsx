@@ -27,12 +27,17 @@ const Login = () => {
     }
   }, [isAuthenticated, user, authLoading, navigate]);
 
-  // Check for session expired parameter on mount
+  // Check for session expired or Canvas re-auth required parameters on mount
   useEffect(() => {
     if (searchParams.get('sessionExpired') === 'true') {
       setSessionExpiredMessage('Your session has expired. Please sign in again to continue.');
       // Remove the query parameter from URL without reload
       searchParams.delete('sessionExpired');
+      setSearchParams(searchParams, { replace: true });
+    } else if (searchParams.get('canvasReauthRequired') === 'true') {
+      setSessionExpiredMessage('Your Canvas connection has expired. Please sign in with Canvas again to reconnect.');
+      // Remove the query parameter from URL without reload
+      searchParams.delete('canvasReauthRequired');
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -107,7 +112,7 @@ const Login = () => {
           </div>
 
           <div className="px-8 pb-8">
-            {/* Session Expired Message */}
+            {/* Session Expired / Re-authentication Message */}
             {sessionExpiredMessage && (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-start gap-2">
@@ -115,7 +120,7 @@ const Login = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                   <div>
-                    <p className="text-sm font-medium text-amber-800">Session Expired</p>
+                    <p className="text-sm font-medium text-amber-800">Sign In Required</p>
                     <p className="text-sm text-amber-700">{sessionExpiredMessage}</p>
                   </div>
                   <button
