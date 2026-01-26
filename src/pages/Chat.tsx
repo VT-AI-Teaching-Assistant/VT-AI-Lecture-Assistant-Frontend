@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { PaperAirplaneIcon, MicrophoneIcon, DocumentTextIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useCourse } from '../context/CourseContext';
 import { qaApiService, SourceInfo } from '../api/qa';
 import { formatMarkdown } from '../utils/markdownFormatter';
@@ -12,15 +11,43 @@ type ChatMessage = {
   sources?: SourceInfo[] | null;
 };
 
+// Sparkle icon for AI
+const SparkleIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M12 3v2m0 14v2M5.636 5.636l1.414 1.414m9.9 9.9l1.414 1.414M3 12h2m14 0h2M5.636 18.364l1.414-1.414m9.9-9.9l1.414-1.414" strokeLinecap="round" />
+    <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.2" />
+  </svg>
+);
+
+// Send icon
+const SendIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none">
+    <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+// Book icon for sources
+const BookIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+// Chevron icon
+const ChevronIcon = ({ className = "w-4 h-4", direction = "down" }: { className?: string; direction?: "up" | "down" }) => (
+  <svg className={`${className} transition-transform ${direction === "up" ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 const Chat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [showFullChat, setShowFullChat] = useState<boolean>(false);
-  const [showSourcesModal, setShowSourcesModal] = useState<boolean>(false);
-  const [selectedSources, setSelectedSources] = useState<SourceInfo[]>([]);
+  const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const { selectedCourse } = useCourse();
 
   const scrollToBottom = (): void => {
@@ -31,18 +58,24 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+    }
+  }, [inputValue]);
+
   const getAIResponse = async (userMessage: string): Promise<void> => {
     setIsLoading(true);
-    
+
     try {
-      // Check if a course is selected
       if (!selectedCourse) {
         throw new Error('Please select a course first to ask questions');
       }
-      
-      // Call the QA API
+
       const response = await qaApiService.askQuestion(userMessage, selectedCourse.course_id);
-      
+
       const aiMessage: ChatMessage = {
         id: Date.now(),
         text: response.answer,
@@ -50,76 +83,54 @@ const Chat = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         sources: response.sources
       };
-      
+
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       console.error('QA API error:', error);
-      
-      // Show error message to user
+
       const errorMessage: ChatMessage = {
         id: Date.now(),
-        text: error instanceof Error 
-          ? `I'm sorry, I encountered an error: ${error.message}` 
-          : 'I\'m sorry, I encountered an error processing your question. Please try again.',
+        text: error instanceof Error
+          ? error.message
+          : 'Sorry, I encountered an error. Please try again.',
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-      
+
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleViewSources = (sources: SourceInfo[]) => {
-    setSelectedSources(sources);
-    setShowSourcesModal(true);
+  const toggleSources = (messageId: number) => {
+    setExpandedSources(prev => {
+      const next = new Set(prev);
+      if (next.has(messageId)) {
+        next.delete(messageId);
+      } else {
+        next.add(messageId);
+      }
+      return next;
+    });
   };
 
-  const getSourceTypeIcon = (sourceType: string) => {
-    switch (sourceType?.toLowerCase()) {
-      case 'notes':
-        return '📝';
-      case 'syllabus':
-        return '📋';
-      case 'assignment':
-        return '📚';
-      case 'announcement':
-        return '📢';
-      case 'module':
-        return '📦';
-      case 'page':
-        return '📄';
-      default:
-        return '📎';
-    }
-  };
-
-  const getSourceTypeColor = (sourceType: string) => {
-    switch (sourceType?.toLowerCase()) {
-      case 'notes':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'syllabus':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'assignment':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'announcement':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'module':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'page':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
+  const getSourceLabel = (sourceType: string) => {
+    const labels: Record<string, string> = {
+      notes: 'Lecture Notes',
+      syllabus: 'Syllabus',
+      assignment: 'Assignment',
+      announcement: 'Announcement',
+      module: 'Module',
+      page: 'Page'
+    };
+    return labels[sourceType?.toLowerCase()] || 'Source';
   };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
-    if (messages.length === 0) {
-      setShowFullChat(true);
-    }
+    if (!inputValue.trim() || isLoading) return;
+
     const userMessage: ChatMessage = {
       id: Date.now(),
       text: inputValue.trim(),
@@ -127,361 +138,225 @@ const Chat = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     setMessages((prev) => [...prev, userMessage]);
-    await getAIResponse(inputValue.trim());
+    const query = inputValue.trim();
     setInputValue('');
+    await getAIResponse(query);
   };
 
-  const handleKeyPress = async (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>): Promise<void> => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      await handleSubmit(e as unknown as React.FormEvent);
+      handleSubmit(e as unknown as React.FormEvent);
     }
   };
 
-  const quickPrompts = [
-    { icon: "📚", text: "Explain concepts", description: "Understand data structures & algorithms" },
-    { icon: "💻", text: "Debug code", description: "Help with coding assignments" },
-    { icon: "📝", text: "Study guide", description: "Create exam preparation materials" },
-    { icon: "🧮", text: "Analyze complexity", description: "Calculate time & space complexity" }
+  const suggestions = [
+    "What topics are covered in this course?",
+    "Explain the main concepts from the last lecture",
+    "What are the assignment deadlines?",
+    "Help me prepare for the exam"
   ];
 
-  if (!showFullChat) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex flex-col items-center justify-center p-6">
-        <div className="max-w-4xl w-full text-center">
-          <div className="mb-12">
-            <h1 className="text-5xl font-bold text-gray-900 mb-4">
-              AI Learning Assistant
-            </h1>
-            <p className="text-xl text-gray-600 leading-relaxed max-w-2xl mx-auto">
-              {selectedCourse 
-                ? `Your intelligent companion for ${selectedCourse.code} - ${selectedCourse.title}.`
-                : 'Your intelligent learning companion.'
-              }
-              <br />
-              Get instant help with assignments, concepts, and exam preparation.
-            </p>
-          </div>
-
-          <div className="mb-8">
-            <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto">
-              <div className="relative bg-white rounded-full shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300">
-                <button
-                  type="button"
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                    <path d="M5 12h14"></path>
-                    <path d="M12 5v14"></path>
-                  </svg>
-                </button>
-                
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Ask anything"
-                  className="w-full pl-14 pr-20 py-4 text-lg bg-transparent rounded-full focus:outline-none focus:ring-0 border-0"
-                />
-                
-                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-2">
-                  <button
-                    type="button"
-                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <MicrophoneIcon className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
-                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                      <path d="M3 6h18l-2 13H5L3 6Z"></path>
-                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            {quickPrompts.map((prompt, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  setInputValue(prompt.text);
-                  inputRef.current?.focus();
-                }}
-                className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-300 transition-all duration-200 text-left group"
-              >
-                <div className="flex items-center space-x-3 mb-2">
-                  <span className="text-2xl">{prompt.icon}</span>
-                  <span className="font-medium text-gray-900 group-hover:text-vt-maroon transition-colors">
-                    {prompt.text}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">{prompt.description}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const hasMessages = messages.length > 0;
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 animate-fadeIn">
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 px-6 py-4 shadow-sm">
-        <div className="flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center space-x-4">
-            <div className="w-10 h-10 bg-gradient-to-r from-vt-maroon to-vt-orange rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">AI Learning Assistant</h1>
-              <p className="text-sm text-gray-500">
-                {selectedCourse ? `${selectedCourse.code} - ${selectedCourse.title}` : 'Course Assistant'}
+    <div className="chat-modern h-screen flex flex-col bg-[#fafafa]">
+      {/* Messages Area */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 py-6">
+
+          {/* Welcome State */}
+          {!hasMessages && (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+              {/* Logo/Icon */}
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#630031] to-[#8a1145] flex items-center justify-center mb-6 shadow-lg shadow-[#630031]/20">
+                <SparkleIcon className="w-8 h-8 text-white" />
+              </div>
+
+              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+                How can I help you today?
+              </h1>
+
+              <p className="text-gray-500 mb-8 max-w-md">
+                {selectedCourse ? (
+                  <>Ask me anything about <span className="font-medium text-gray-700">{selectedCourse.code}: {selectedCourse.title}</span></>
+                ) : (
+                  'Select a course to get started with your AI learning assistant'
+                )}
               </p>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              setMessages([]);
-              setShowFullChat(false);
-            }}
-            className="px-6 py-2 text-sm font-medium text-white bg-vt-maroon hover:bg-red-800 rounded-full transition-all duration-200 shadow-md hover:shadow-lg"
-          >
-            New Chat
-          </button>
-        </div>
-      </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-8">
-        <div className="max-w-5xl mx-auto space-y-8">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.isUser ? 'justify-end' : 'justify-start'} animate-slideIn`}
-            >
-              <div className={`flex items-start space-x-4 max-w-4xl ${message.isUser ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md ${
-                  message.isUser 
-                    ? 'bg-gradient-to-r from-vt-maroon to-red-700 text-white' 
-                    : 'bg-gradient-to-r from-green-500 to-green-600 text-white'
-                }`}>
-                  {message.isUser ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                      <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                    </svg>
-                  )}
-                </div>
-                
-                <div className={`flex flex-col ${message.isUser ? 'items-end' : 'items-start'}`}>
-                  <div className={`px-6 py-4 rounded-2xl max-w-full shadow-md hover:shadow-lg transition-all duration-200 ${
-                    message.isUser 
-                      ? 'bg-gradient-to-r from-vt-maroon to-red-700 text-white rounded-br-sm' 
-                      : 'bg-white border border-gray-200/50 text-gray-900 rounded-bl-sm'
-                  }`}>
-                    {message.isUser ? (
-                      <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
-                    ) : (
-                      <div className="markdown-content leading-relaxed">
-                        {formatMarkdown(message.text)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-3 mt-2 px-2">
-                    <span className="text-xs text-gray-500">{message.timestamp}</span>
-                    {!message.isUser && (
-                      <>
-                        <button className="text-xs text-gray-400 hover:text-gray-600 transition-colors" title="Copy">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
-                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
-                          </svg>
-                        </button>
-                        {message.sources && message.sources.length > 0 && (
-                          <button
-                            onClick={() => handleViewSources(message.sources!)}
-                            className="flex items-center space-x-1 text-xs text-vt-maroon hover:text-red-800 transition-colors font-medium bg-vt-maroon/10 hover:bg-vt-maroon/20 px-2 py-1 rounded-full"
-                            title="View sources used for this answer"
-                          >
-                            <DocumentTextIcon className="w-3 h-3" />
-                            <span>View Sources ({message.sources.length})</span>
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-          
-          {isLoading && (
-            <div className="flex justify-start animate-slideIn">
-              <div className="flex items-start space-x-4 max-w-4xl">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-green-600 text-white flex items-center justify-center shadow-md">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                    <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                  </svg>
-                </div>
-                <div className="bg-white border border-gray-200/50 rounded-2xl rounded-bl-sm px-6 py-4 shadow-md">
-                  <div className="flex items-center space-x-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-vt-maroon rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-vt-maroon rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-vt-maroon rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    </div>
-                    <span className="text-sm text-gray-500 ml-2">AI is thinking...</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-
-      <div className="bg-white/80 backdrop-blur-sm border-t border-gray-200/50 px-6 py-6 shadow-lg">
-        <div className="max-w-5xl mx-auto">
-          <form onSubmit={handleSubmit} className="relative">
-            <div className="relative bg-white rounded-3xl border-2 border-gray-200 focus-within:border-vt-maroon focus-within:shadow-lg transition-all duration-300 shadow-md">
-              <textarea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask me anything about data structures, algorithms, or your assignments..."
-                className="w-full px-6 py-4 pr-16 bg-transparent rounded-3xl resize-none focus:outline-none leading-relaxed max-h-40"
-                rows={1}
-                style={{ minHeight: '56px' }}
-              />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-                <button
-                  type="button"
-                  className="p-2 text-gray-400 hover:text-vt-maroon transition-colors duration-200 rounded-lg hover:bg-gray-100"
-                >
-                  <MicrophoneIcon className="w-5 h-5" />
-                </button>
-                <button
-                  type="submit"
-                  disabled={!inputValue.trim() || isLoading}
-                  className={`p-2 rounded-full transition-all duration-200 ${
-                    inputValue.trim() && !isLoading
-                      ? 'bg-vt-maroon text-white hover:bg-red-800 shadow-md hover:shadow-lg scale-100 hover:scale-105'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  <PaperAirplaneIcon className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </form>
-          
-          <p className="text-xs text-gray-500 text-center mt-3">
-            AI can make mistakes. Check important info and verify answers with course materials.
-          </p>
-        </div>
-      </div>
-
-      {/* Sources Modal */}
-      {showSourcesModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-            onClick={() => setShowSourcesModal(false)}
-          />
-          
-          {/* Modal */}
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative w-full max-w-2xl transform transition-all">
-              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-vt-maroon to-red-700 px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <DocumentTextIcon className="h-6 w-6 text-white" />
-                      <div>
-                        <h3 className="text-lg font-semibold text-white">Sources Used</h3>
-                        <p className="text-sm text-white/80">{selectedSources.length} source{selectedSources.length !== 1 ? 's' : ''} referenced for this answer</p>
-                      </div>
-                    </div>
+              {/* Suggestion chips */}
+              {selectedCourse && (
+                <div className="flex flex-wrap justify-center gap-2 max-w-xl">
+                  {suggestions.map((suggestion, index) => (
                     <button
-                      onClick={() => setShowSourcesModal(false)}
-                      className="p-1 rounded-full hover:bg-white/20 transition-colors"
-                    >
-                      <XMarkIcon className="h-6 w-6 text-white" />
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Sources List */}
-                <div className="max-h-[60vh] overflow-y-auto p-4 space-y-3">
-                  {selectedSources.map((source, index) => (
-                    <div 
                       key={index}
-                      className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-vt-maroon/30 hover:shadow-md transition-all"
+                      onClick={() => setInputValue(suggestion)}
+                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 transition-all duration-200 shadow-sm"
                     >
-                      <div className="flex items-start space-x-3">
-                        <span className="text-2xl">{getSourceTypeIcon(source.sourceType)}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getSourceTypeColor(source.sourceType)}`}>
-                              {source.sourceType?.charAt(0).toUpperCase() + source.sourceType?.slice(1) || 'Source'}
-                            </span>
-                            {source.relevanceScore && (
-                              <span className="text-xs text-gray-500">
-                                {Math.round(source.relevanceScore * 100)}% match
-                              </span>
-                            )}
-                          </div>
-                          
-                          <h4 className="font-semibold text-gray-900 text-sm mb-1 truncate">
-                            {source.title || source.fileName || `${source.sourceType} ${source.sourceId}`}
-                          </h4>
-                          
-                          {source.fileName && source.title !== source.fileName && (
-                            <p className="text-xs text-gray-500 mb-2">
-                              📁 {source.fileName}
-                            </p>
-                          )}
-                          
-                          {source.excerpt && (
-                            <div className="bg-white rounded-lg p-3 border border-gray-100 mt-2">
-                              <p className="text-xs text-gray-600 leading-relaxed italic">
-                                "{source.excerpt}"
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                      {suggestion}
+                    </button>
                   ))}
                 </div>
-                
-                {/* Footer */}
-                <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
-                  <p className="text-xs text-gray-500 text-center">
-                    These sources were used by the AI to generate the answer. Always verify important information.
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
-          </div>
+          )}
+
+          {/* Messages */}
+          {hasMessages && (
+            <div className="space-y-6 pb-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex gap-4 ${message.isUser ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+                >
+                  {/* AI Avatar */}
+                  {!message.isUser && (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#630031] to-[#8a1145] flex items-center justify-center shadow-md">
+                      <SparkleIcon className="w-4 h-4 text-white" />
+                    </div>
+                  )}
+
+                  {/* Message Content */}
+                  <div className={`flex flex-col ${message.isUser ? 'items-end' : 'items-start'} max-w-[85%]`}>
+                    <div
+                      className={`rounded-2xl px-4 py-3 ${
+                        message.isUser
+                          ? 'bg-[#630031] text-white rounded-br-md'
+                          : 'bg-white border border-gray-100 text-gray-800 rounded-bl-md shadow-sm'
+                      }`}
+                    >
+                      {message.isUser ? (
+                        <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                      ) : (
+                        <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-[#630031] prose-code:text-[#630031] prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+                          {formatMarkdown(message.text)}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Sources Section */}
+                    {!message.isUser && message.sources && message.sources.length > 0 && (
+                      <div className="mt-2 w-full">
+                        <button
+                          onClick={() => toggleSources(message.id)}
+                          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors group"
+                        >
+                          <BookIcon className="w-4 h-4" />
+                          <span>{message.sources.length} source{message.sources.length !== 1 ? 's' : ''}</span>
+                          <ChevronIcon
+                            className="w-3 h-3 text-gray-400 group-hover:text-gray-600"
+                            direction={expandedSources.has(message.id) ? "up" : "down"}
+                          />
+                        </button>
+
+                        {/* Expanded sources */}
+                        {expandedSources.has(message.id) && (
+                          <div className="mt-3 space-y-2 animate-fadeIn">
+                            {message.sources.map((source, idx) => (
+                              <div
+                                key={idx}
+                                className="bg-gray-50 border border-gray-100 rounded-xl p-3 hover:bg-gray-100/80 transition-colors"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-xs font-medium text-gray-500">
+                                    {idx + 1}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-xs font-medium text-[#630031] bg-[#630031]/10 px-2 py-0.5 rounded-full">
+                                        {getSourceLabel(source.sourceType)}
+                                      </span>
+                                      {source.relevanceScore && (
+                                        <span className="text-xs text-gray-400">
+                                          {Math.round(source.relevanceScore * 100)}% match
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-900 truncate">
+                                      {source.title || source.fileName || `${source.sourceType} ${source.sourceId}`}
+                                    </p>
+                                    {source.excerpt && (
+                                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                        {source.excerpt}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* User Avatar */}
+                  {message.isUser && (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-sm font-medium text-gray-600">You</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Loading State */}
+              {isLoading && (
+                <div className="flex gap-4 animate-fadeIn">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#630031] to-[#8a1145] flex items-center justify-center shadow-md">
+                    <SparkleIcon className="w-4 h-4 text-white animate-pulse" />
+                  </div>
+                  <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
-      )}
+      </main>
+
+      {/* Input Area */}
+      <footer className="border-t border-gray-100 bg-white/80 backdrop-blur-xl">
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <form onSubmit={handleSubmit}>
+            <div className="relative bg-white border border-gray-200 rounded-2xl shadow-sm focus-within:border-[#630031]/30 focus-within:shadow-md focus-within:shadow-[#630031]/5 transition-all duration-200">
+              <textarea
+                ref={textareaRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask anything..."
+                className="w-full px-4 py-3 pr-14 bg-transparent resize-none focus:outline-none text-gray-900 placeholder-gray-400 text-[15px] leading-relaxed"
+                rows={1}
+                style={{ maxHeight: '200px' }}
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={!inputValue.trim() || isLoading}
+                className={`absolute right-2 bottom-2 p-2 rounded-xl transition-all duration-200 ${
+                  inputValue.trim() && !isLoading
+                    ? 'bg-[#630031] text-white hover:bg-[#7a003d] shadow-md hover:shadow-lg'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <SendIcon className="w-5 h-5" />
+              </button>
+            </div>
+          </form>
+
+          <p className="text-xs text-gray-400 text-center mt-3">
+            AI can make mistakes. Please verify important information with course materials.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
