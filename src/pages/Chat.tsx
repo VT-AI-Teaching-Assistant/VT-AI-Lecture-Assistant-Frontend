@@ -160,14 +160,13 @@ const Chat = () => {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="chat-modern h-screen flex flex-col bg-[#fafafa]">
-      {/* Messages Area */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-4 py-6">
+    <div className="chat-modern -m-4 sm:-m-6 lg:-m-8 h-[calc(100vh-4rem)] lg:h-screen bg-[#fafafa] overflow-y-auto">
+      {/* Messages Area - scrollable */}
+      <div className="max-w-3xl mx-auto px-4 py-6 pb-44">
 
-          {/* Welcome State */}
-          {!hasMessages && (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        {/* Welcome State */}
+        {!hasMessages && (
+          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center">
               {/* Logo/Icon */}
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#630031] to-[#8a1145] flex items-center justify-center mb-6 shadow-lg shadow-[#630031]/20">
                 <SparkleIcon className="w-8 h-8 text-white" />
@@ -267,11 +266,6 @@ const Chat = () => {
                                       <span className="text-xs font-medium text-[#630031] bg-[#630031]/10 px-2 py-0.5 rounded-full">
                                         {getSourceLabel(source.sourceType)}
                                       </span>
-                                      {source.relevanceScore && (
-                                        <span className="text-xs text-gray-400">
-                                          {Math.round(source.relevanceScore * 100)}% match
-                                        </span>
-                                      )}
                                     </div>
                                     <p className="text-sm font-medium text-gray-900 truncate">
                                       {source.title || source.fileName || `${source.sourceType} ${source.sourceId}`}
@@ -320,13 +314,12 @@ const Chat = () => {
             </div>
           )}
         </div>
-      </main>
 
-      {/* Input Area */}
-      <footer className="border-t border-gray-100 bg-white/80 backdrop-blur-xl">
+      {/* Input Area - Fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-gradient-to-t from-[#fafafa] via-[#fafafa] to-transparent pt-8 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4">
           <form onSubmit={handleSubmit}>
-            <div className="relative bg-white border border-gray-200 rounded-2xl shadow-sm focus-within:border-[#630031]/30 focus-within:shadow-md focus-within:shadow-[#630031]/5 transition-all duration-200">
+            <div className="relative bg-white border border-gray-200 rounded-2xl shadow-lg shadow-gray-200/50 focus-within:border-[#630031]/30 focus-within:shadow-xl focus-within:shadow-gray-300/50 transition-all duration-200">
               <textarea
                 ref={textareaRef}
                 value={inputValue}
@@ -352,11 +345,11 @@ const Chat = () => {
             </div>
           </form>
 
-          <p className="text-xs text-gray-400 text-center mt-3">
+          <p className="text-xs text-gray-400 text-center mt-3 pb-2">
             AI can make mistakes. Please verify important information with course materials.
           </p>
         </div>
-      </footer>
+      </div>
     </div>
   );
 };
