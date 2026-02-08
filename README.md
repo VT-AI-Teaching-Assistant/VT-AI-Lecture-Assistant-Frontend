@@ -53,7 +53,7 @@ A modern, responsive web application built with React and Tailwind CSS that prov
    ```
 
 3. **Open in Browser**
-   Navigate to `http://localhost:3000`
+   Navigate to `http://localhost:3000` 
 
 ## 📱 Pages Overview
 
