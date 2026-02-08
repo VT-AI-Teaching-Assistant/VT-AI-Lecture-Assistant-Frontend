@@ -18,7 +18,6 @@ type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: true } | { success: false; message: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -93,72 +92,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initializeAuth();
   }, [refreshUserInfo]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      
-      // Call backend login API
-      const response = await apiService.post<{ success: boolean; data: { accessToken: string; user: any }; message?: string }>('/auth/login', {
-        email,
-        password
-      });
-      
-      if (response.success && response.data) {
-        // Store access token in memory
-        apiService.setToken(response.data.accessToken);
-        
-        // Set user state from login response
-        const userData = response.data.user;
-        if (!userData) {
-          throw new Error('User data not found in login response');
-        }
-        
-        const authUser: AuthUser = {
-          id: userData.id,
-          email: userData.email,
-          name: userData.name,
-          role: userData.role as UserRole,
-          entityId: userData.entityId,
-          isFirstTime: userData.isFirstTime,
-          hasRegisteredCourses: userData.hasRegisteredCourses
-        };
-        setUser(authUser);
-        
-        // Store minimal info for persistence check
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ 
-          id: authUser.id, 
-          email: authUser.email, 
-          role: authUser.role 
-        }));
-        
-        // Fetch additional user info
-        await refreshUserInfo();
-        
-        return { success: true as const };
-      } else {
-        return { success: false as const, message: response.message || 'Login failed' };
-      }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      console.error('Error response:', error.response?.data);
-      
-      // Check if it's a network error (backend not running)
-      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-        return { 
-          success: false as const, 
-          message: 'Backend server is not running. Please start the Java backend server.' 
-        };
-      }
-      
-      return { 
-        success: false as const, 
-        message: error.response?.data?.message || error.message || 'Invalid email or password' 
-      };
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   const logout = useCallback(async () => {
     try {
       // Call backend logout API
@@ -181,8 +114,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [refreshUserInfo]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isAuthenticated: Boolean(user), isLoading, login, logout, refreshUser }),
-    [user, isLoading, login, logout, refreshUser]
+    () => ({ user, isAuthenticated: Boolean(user), isLoading, logout, refreshUser }),
+    [user, isLoading, logout, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -38,7 +38,6 @@ import {
   Grade,
   FAQ,
   Transcript,
-  LoginRequest,
   CreateAnnouncementRequest,
   CreateDiscussionRequest,
   UploadTranscriptRequest,
@@ -58,7 +57,6 @@ export abstract class BasePresenter implements IPresenter {
 
 // Auth Presenter
 export interface IAuthPresenter {
-  login(email: string, password: string): Promise<{ success: boolean; message?: string }>;
   logout(): Promise<void>;
   getCurrentUser(): Promise<User | null>;
   isAuthenticated(): boolean;
@@ -70,19 +68,6 @@ export class AuthPresenter extends BasePresenter implements IAuthPresenter {
     @inject(TYPES.AuthRepository) private authRepository: IAuthRepository
   ) {
     super();
-  }
-
-  async login(email: string, password: string): Promise<{ success: boolean; message?: string }> {
-    try {
-      const request: LoginRequest = { email, password };
-      await this.authRepository.login(request);
-      return { success: true };
-    } catch (error) {
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Login failed' 
-      };
-    }
   }
 
   async logout(): Promise<void> {

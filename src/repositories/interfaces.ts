@@ -11,8 +11,6 @@ import {
   Grade,
   FAQ,
   Transcript,
-  LoginRequest,
-  LoginResponse,
   CreateAnnouncementRequest,
   CreateDiscussionRequest,
   UploadTranscriptRequest,
@@ -22,7 +20,6 @@ import {
 } from '../models';
 
 export interface IAuthRepository {
-  login(request: LoginRequest): Promise<LoginResponse>;
   logout(): Promise<void>;
   refreshToken(): Promise<string>;
   getCurrentUser(): Promise<User>;

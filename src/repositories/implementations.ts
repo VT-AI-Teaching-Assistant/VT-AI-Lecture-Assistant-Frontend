@@ -27,8 +27,6 @@ import {
   Grade,
   FAQ,
   Transcript,
-  LoginRequest,
-  LoginResponse,
   CreateAnnouncementRequest,
   CreateDiscussionRequest,
   UploadTranscriptRequest,
@@ -39,15 +37,6 @@ import {
 
 @injectable()
 export class AuthRepository implements IAuthRepository {
-  async login(request: LoginRequest): Promise<LoginResponse> {
-    const response = await apiService.post<ApiResponse<LoginResponse>>('/auth/login', request);
-    if (response.success) {
-      apiService.setToken(response.data.token);
-      localStorage.setItem('refresh_token', response.data.refreshToken);
-    }
-    return response.data;
-  }
-
   async logout(): Promise<void> {
     try {
       await apiService.post('/auth/logout');
