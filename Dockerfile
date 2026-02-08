@@ -16,7 +16,7 @@ COPY . .
 # Build arguments for environment variables (baked into build)
 ARG REACT_APP_API_BASE_URL=/api
 ARG REACT_APP_API_TIMEOUT=30000
-ARG REACT_APP_OAUTH_SERVER_URL=https://mockcanvasoauth-production.up.railway.app
+ARG REACT_APP_OAUTH_SERVER_URL=https://mock-canvas-oauth-ts.vercel.app
 ARG REACT_APP_OAUTH_CLIENT_ID=vt-ai-lecture-assistant
 ARG REACT_APP_OAUTH_REDIRECT_URI=https://aita.cisl.cs.vt.edu/auth/callback
 

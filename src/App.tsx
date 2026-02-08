@@ -21,6 +21,7 @@ import Analytics from './pages/Analytics';
 import StudentQuestionsDetail from './pages/StudentQuestionsDetail';
 import History from './pages/History';
 import Disputes from './pages/Disputes';
+import Settings from './pages/Settings';
 import { ErrorBoundary } from './utils/errorHandling';
 import './container'; // Initialize dependency injection container
 import { bindPresenters } from './presenterBindings'; // Bind presenters
@@ -103,6 +104,11 @@ function App() {
                         <Route path="/instructor/upload" element={
                           <ProtectedRoute allow={["instructor"]}>
                             <InstructorUpload />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/settings" element={
+                          <ProtectedRoute allow={["instructor"]}>
+                            <Settings />
                           </ProtectedRoute>
                         } />
                       </Routes>

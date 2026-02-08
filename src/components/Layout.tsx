@@ -14,7 +14,8 @@ import {
   XMarkIcon,
   ClockIcon,
   ExclamationTriangleIcon,
-  DocumentIcon
+  DocumentIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 
 type LayoutProps = {
@@ -62,7 +63,8 @@ const Layout = ({ children }: LayoutProps) => {
          ...baseNavigation.slice(1), // Home and rest
          { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
          { name: 'Disputes', href: '/disputes', icon: ExclamationTriangleIcon },
-         { name: 'Upload Transcript', href: '/instructor/upload', icon: AcademicCapIcon }
+         { name: 'Upload Transcript', href: '/instructor/upload', icon: AcademicCapIcon },
+         { name: 'Settings', href: '/settings', icon: Cog6ToothIcon }
         ]
       : [...baseNavigation,
          { name: 'History', href: '/history', icon: ClockIcon }];
