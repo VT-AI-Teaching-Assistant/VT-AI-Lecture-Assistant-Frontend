@@ -18,7 +18,7 @@ ARG REACT_APP_API_BASE_URL=/api
 ARG REACT_APP_API_TIMEOUT=30000
 ARG REACT_APP_OAUTH_SERVER_URL=https://mockcanvasoauth-production.up.railway.app
 ARG REACT_APP_OAUTH_CLIENT_ID=vt-ai-lecture-assistant
-ARG REACT_APP_OAUTH_REDIRECT_URI=http://vt-ai-ta-alb-1802072607.us-east-2.elb.amazonaws.com/auth/callback
+ARG REACT_APP_OAUTH_REDIRECT_URI=https://aita.cisl.cs.vt.edu/auth/callback
 
 # Set environment variables for build
 ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
