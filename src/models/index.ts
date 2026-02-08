@@ -146,17 +146,6 @@ export interface PaginatedResponse<T> {
 }
 
 // Request Types
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface LoginResponse {
-  user: User;
-  token: string;
-  refreshToken: string;
-}
-
 export interface CreateAnnouncementRequest {
   title: string;
   content: string;
