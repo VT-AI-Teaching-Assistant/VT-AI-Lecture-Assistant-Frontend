@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getAuthorizationUrl } from '../config/oauth';
+import OtpLogin from './OtpLogin';
+
+const authMode = process.env.REACT_APP_AUTH_MODE || 'otp';
 
 const Login = () => {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -39,6 +42,11 @@ const Login = () => {
     const authUrl = getAuthorizationUrl(state);
     window.location.href = authUrl;
   };
+
+  // Use OTP login when auth mode is 'otp'
+  if (authMode === 'otp') {
+    return <OtpLogin />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-vt-maroon/5 via-white to-vt-orange/5 flex items-center justify-center px-4">
