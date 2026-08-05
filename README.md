@@ -124,4 +124,3 @@ Build args (defaults in Dockerfile): `REACT_APP_API_BASE_URL`, `REACT_APP_API_TI
 
 ---
 
-**Built with ❤️ for VT students by VT students**
