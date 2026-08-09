@@ -1,18 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import YouTube, { YouTubeProps } from 'react-youtube';
 import { fetchTranscriptSummaries, TranscriptSummary } from '../api/transcripts';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
 import Students from '../components/Students';
-
-type LectureItem = {
-  id: number;
-  title: string;
-  description: string;
-  date: string;
-  duration: string;
-  completed: boolean;
-};
+import { LocalYoutubeLecture, readLocalYoutubeLectures } from '../utils/youtube';
 
 const Lectures = () => {
   const { selectedCourse } = useCourse();
@@ -22,6 +15,9 @@ const Lectures = () => {
   const [summaries, setSummaries] = useState<TranscriptSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [youtubeLectures, setYoutubeLectures] = useState<LocalYoutubeLecture[]>([]);
+  const [selectedYoutubeLecture, setSelectedYoutubeLecture] = useState<LocalYoutubeLecture | null>(null);
+  const [youtubeLoadError, setYoutubeLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedCourse && activeTab === 'lectures') {
@@ -42,7 +38,32 @@ const Lectures = () => {
     }
   }, [selectedCourse, COURSE_ID, activeTab]);
 
+  useEffect(() => {
+    if (!selectedCourse || activeTab !== 'lectures') return;
+
+    const allLocalYoutubeLectures = readLocalYoutubeLectures();
+    const courseYoutubeLectures = allLocalYoutubeLectures
+      .filter((lecture) => lecture.courseId === selectedCourse.course_id)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+
+    setYoutubeLectures(courseYoutubeLectures);
+    setSelectedYoutubeLecture(courseYoutubeLectures[0] || null);
+    setYoutubeLoadError(null);
+  }, [selectedCourse, activeTab]);
+
   const total = useMemo(() => summaries?.length ?? 0, [summaries]);
+  const totalWithYoutube = total + youtubeLectures.length;
+
+  const youtubePlayerOpts: YouTubeProps['opts'] = {
+    width: '100%',
+    height: '420',
+    playerVars: {
+      autoplay: 0,
+      rel: 0,
+      modestbranding: 1,
+      playsinline: 1,
+    },
+  };
 
   const renderLecturesContent = () => (
     <>
@@ -51,7 +72,7 @@ const Lectures = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Lectures</p>
-              <p className="text-3xl font-bold text-vt-maroon">{total}</p>
+              <p className="text-3xl font-bold text-vt-maroon">{totalWithYoutube}</p>
             </div>
             <svg className="h-12 w-12 text-vt-maroon opacity-20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
@@ -86,6 +107,68 @@ const Lectures = () => {
               <path d="M3 10h18"></path>
             </svg>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-bold text-gray-900">Video Lectures (Temporary)</h2>
+          <p className="text-gray-600 mt-1">
+            YouTube links added from Instructor Upload. Stored locally in this browser for testing.
+          </p>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {youtubeLectures.length === 0 && (
+            <div className="text-gray-600">
+              No local YouTube lectures found for this course yet.
+            </div>
+          )}
+
+          {youtubeLectures.length > 0 && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {youtubeLectures.map((lecture) => (
+                  <button
+                    key={lecture.id}
+                    onClick={() => {
+                      setSelectedYoutubeLecture(lecture);
+                      setYoutubeLoadError(null);
+                    }}
+                    className={`text-left border rounded-lg p-3 transition-colors ${
+                      selectedYoutubeLecture?.id === lecture.id
+                        ? 'border-vt-maroon bg-red-50'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <p className="font-medium text-gray-900">{lecture.title}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Added {new Date(lecture.createdAt).toLocaleString()}
+                    </p>
+                  </button>
+                ))}
+              </div>
+
+              {selectedYoutubeLecture && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900">{selectedYoutubeLecture.title}</h3>
+                  <div className="rounded-lg overflow-hidden border border-gray-200 bg-black">
+                    <YouTube
+                      videoId={selectedYoutubeLecture.youtubeVideoId}
+                      opts={youtubePlayerOpts}
+                      className="w-full"
+                      onError={() => {
+                        setYoutubeLoadError(
+                          'Unable to load this video. It may be private, region-restricted, or embedding may be disabled.'
+                        );
+                      }}
+                    />
+                  </div>
+                  {youtubeLoadError && <div className="text-sm text-red-600">{youtubeLoadError}</div>}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 

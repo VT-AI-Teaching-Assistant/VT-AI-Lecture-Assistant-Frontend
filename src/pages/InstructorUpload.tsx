@@ -4,6 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import { useCourse } from '../context/CourseContext';
 import { uploadTranscript } from '../api/transcripts';
 import { getTranscriptionJobStatus, getVideoUploadUrl, startVideoTranscriptionJob } from '../api/videoTranscription';
+import {
+  extractYouTubeVideoId,
+  isLikelyValidYouTubeId,
+  LocalYoutubeLecture,
+  readLocalYoutubeLectures,
+  toCanonicalYouTubeUrl,
+  writeLocalYoutubeLectures,
+} from '../utils/youtube';
 
 type TranscriptionState = 'idle' | 'requestingUrl' | 'queued' | 'uploading' | 'processing' | 'completed' | 'failed';
 
@@ -25,6 +33,10 @@ const InstructorUpload = () => {
   const [generatedTranscript, setGeneratedTranscript] = useState('');
   const [transcriptionJobId, setTranscriptionJobId] = useState<string | null>(null);
   const [isSavingGenerated, setIsSavingGenerated] = useState(false);
+  const [youtubeTitle, setYoutubeTitle] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [youtubeSuccess, setYoutubeSuccess] = useState<string | null>(null);
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -271,6 +283,62 @@ const InstructorUpload = () => {
     }
   };
 
+  const handleAddYoutubeLecture = (e: React.FormEvent) => {
+    e.preventDefault();
+    setYoutubeError(null);
+    setYoutubeSuccess(null);
+
+    if (!selectedCourse?.course_id) {
+      setYoutubeError('Please select a course context first from your Profile page.');
+      return;
+    }
+
+    const trimmedTitle = youtubeTitle.trim();
+    const trimmedUrl = youtubeUrl.trim();
+
+    if (!trimmedTitle) {
+      setYoutubeError('Please enter a lecture title for the YouTube video.');
+      return;
+    }
+
+    if (!trimmedUrl) {
+      setYoutubeError('Please paste a YouTube URL.');
+      return;
+    }
+
+    const videoId = extractYouTubeVideoId(trimmedUrl);
+    if (!videoId || !isLikelyValidYouTubeId(videoId)) {
+      setYoutubeError('Please enter a valid YouTube URL (youtube.com or youtu.be).');
+      return;
+    }
+
+    const existing = readLocalYoutubeLectures();
+    const canonicalUrl = toCanonicalYouTubeUrl(videoId);
+
+    const duplicate = existing.some(
+      (item) => item.courseId === selectedCourse.course_id && item.youtubeVideoId === videoId
+    );
+
+    if (duplicate) {
+      setYoutubeError('This YouTube video is already added for the selected course.');
+      return;
+    }
+
+    const entry: LocalYoutubeLecture = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      courseId: selectedCourse.course_id,
+      title: trimmedTitle,
+      youtubeUrl: canonicalUrl,
+      youtubeVideoId: videoId,
+      createdAt: new Date().toISOString(),
+    };
+
+    writeLocalYoutubeLectures([entry, ...existing]);
+    setYoutubeSuccess('YouTube lecture link added locally. Open Lectures page to play it.');
+    setYoutubeTitle('');
+    setYoutubeUrl('');
+  };
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="bg-gradient-to-r from-vt-maroon to-vt-orange text-white rounded-lg p-6">
@@ -383,6 +451,48 @@ const InstructorUpload = () => {
           )}
           {transcriptionMessage && <div className="text-sm text-gray-600">{transcriptionMessage}</div>}
           {transcriptionError && <div className="text-sm text-red-600">{transcriptionError}</div>}
+        </form>
+      </div>
+
+      <div className="card">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Add YouTube Lecture (Temporary)</h2>
+          <p className="text-sm text-gray-600">
+            This stores links in browser localStorage for temporary testing. It is not shared across users.
+          </p>
+        </div>
+
+        <form onSubmit={handleAddYoutubeLecture} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Lecture Title</label>
+            <input
+              type="text"
+              value={youtubeTitle}
+              onChange={(e) => setYoutubeTitle(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vt-maroon focus:border-transparent"
+              placeholder="Lecture 6: Operating Systems - Threads"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">YouTube URL</label>
+            <input
+              type="url"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vt-maroon focus:border-transparent"
+              placeholder="https://www.youtube.com/watch?v=VIDEO_ID"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Supports youtube.com/watch, youtu.be, and youtube.com/embed URLs. Unlisted links are fine.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button type="submit" className="btn-secondary">
+              Add Local YouTube Lecture
+            </button>
+          </div>
+          {youtubeError && <div className="text-sm text-red-600">{youtubeError}</div>}
+          {youtubeSuccess && <div className="text-sm text-green-700">{youtubeSuccess}</div>}
         </form>
       </div>
 
