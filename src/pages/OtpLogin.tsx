@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/ApiService';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -310,8 +310,8 @@ const OtpLogin = () => {
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <div className="leading-none">
-              <span className="text-lg font-bold tracking-tight text-white">HokieLearn</span>
-              <span className="text-lg font-bold tracking-tight text-orange ml-0.5">AI</span>
+              <span className="text-lg font-bold tracking-tight text-white"><Link to ="/">AiLearn</Link></span>
+              <span className="text-lg font-bold tracking-tight text-orange ml-0.5">TA</span>
             </div>
           </div>
 
@@ -482,7 +482,7 @@ const OtpLogin = () => {
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <div>
-              <span className="text-lg font-bold text-white tracking-tight">HokieLearn</span>
+              <span className="text-lg font-bold text-white tracking-tight">AiLearn</span>
               <span className="text-lg font-bold text-orange tracking-tight ml-0.5">AI</span>
             </div>
           </div>
@@ -582,7 +582,7 @@ const OtpLogin = () => {
                       Choose Your Role
                     </h2>
                     <p className="text-gray-500 text-sm mb-7">
-                      Select how you'll be using HokieLearn AI
+                      Select how you'll be using AiLearn TA
                     </p>
 
                     <div className="space-y-3">
@@ -820,7 +820,7 @@ const OtpLogin = () => {
 
             {/* Footer */}
             <p className="text-center text-xs text-gray-400 mt-6 leading-relaxed">
-              By signing in, you agree to HokieLearn AI's terms of service.
+              By signing in, you agree to AiLearn TA's terms of service.
               <br />
               <span className="text-gray-300">
                 Built with pride at CISL Lab, Virginia Tech

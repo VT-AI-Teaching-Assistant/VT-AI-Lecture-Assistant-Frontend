@@ -41,6 +41,15 @@ const ChevronIcon = ({ className = "w-4 h-4", direction = "down" }: { className?
   </svg>
 );
 
+// External link icon for clickable sources
+const ExternalLinkIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M15 3h6v6" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M10 14 21 3" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 const Chat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>('');
@@ -74,7 +83,11 @@ const Chat = () => {
         throw new Error('Please select a course first to ask questions');
       }
 
-      const response = await qaApiService.askQuestion(userMessage, selectedCourse.course_id);
+      const response = await qaApiService.askQuestion(
+        userMessage,
+        selectedCourse.course_id,
+        selectedCourse.title || undefined
+      );
 
       const aiMessage: ChatMessage = {
         id: Date.now(),
@@ -267,9 +280,23 @@ const Chat = () => {
                                         {getSourceLabel(source.sourceType)}
                                       </span>
                                     </div>
-                                    <p className="text-sm font-medium text-gray-900 truncate">
-                                      {source.title || source.fileName || `${source.sourceType} ${source.sourceId}`}
-                                    </p>
+                                    {source.url ? (
+                                      <a
+                                        href={source.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm font-medium text-[#630031] hover:underline truncate flex items-center gap-1"
+                                      >
+                                        <span className="truncate">
+                                          {source.title || source.fileName || `${source.sourceType} ${source.sourceId}`}
+                                        </span>
+                                        <ExternalLinkIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                      </a>
+                                    ) : (
+                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                        {source.title || source.fileName || `${source.sourceType} ${source.sourceId}`}
+                                      </p>
+                                    )}
                                     {source.excerpt && (
                                       <p className="text-xs text-gray-500 mt-1 line-clamp-2">
                                         {source.excerpt}

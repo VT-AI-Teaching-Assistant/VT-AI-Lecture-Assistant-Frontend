@@ -1,5 +1,5 @@
 import React, { useState, useEffect, ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link} from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCourse } from '../context/CourseContext';
 import AIDisclaimerModal, { hasAcknowledgedDisclaimer } from './AIDisclaimerModal';
@@ -96,7 +96,7 @@ const Layout = ({ children }: LayoutProps) => {
                 <span className="text-white font-bold text-lg">VT</span>
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">AI Assistant</h1>
+                <h1 className="text-lg font-semibold text-gray-900"><Link to ="/"> AiLearn TA </Link></h1>
                 <p className="text-sm text-vt-gray">Virginia Tech</p>
               </div>
             </div>

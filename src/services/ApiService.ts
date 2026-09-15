@@ -66,8 +66,13 @@ export class ApiService {
       async (error) => {
         const originalRequest = error.config;
 
+        // Treat opaque/no-response errors (e.g. a 401 whose response was blocked by CORS
+        // because it lacked CORS headers) the same as an explicit 401 - attempt refresh+retry.
+        // Without this, such requests never reach the refresh logic below.
+        const isAuthFailure = error.response?.status === 401 || (!error.response && !originalRequest?._retry);
+
         // Don't retry refresh endpoint or if it's already a retry
-        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
+        if (isAuthFailure && originalRequest && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
           if (this.isRefreshing) {
             // If already refreshing, queue this request
             return new Promise((resolve, reject) => {
@@ -90,10 +95,14 @@ export class ApiService {
             // Retry the original request with new token
             originalRequest.headers.Authorization = `Bearer ${this.token}`;
             return this.client.request(originalRequest);
-          } catch (refreshError) {
+          } catch (refreshError: any) {
             this.processQueue(refreshError, null);
-            // Refresh failed - session expired, redirect with friendly message
-            this.handleSessionExpired();
+            // Only force a logout redirect when the refresh call itself got a definitive
+            // rejection from the server. If refresh also failed with no response (e.g. a
+            // genuine network outage), don't clear the session - just surface the error.
+            if (refreshError?.response) {
+              this.handleSessionExpired();
+            }
             return Promise.reject(refreshError);
           }
         }

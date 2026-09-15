@@ -5,6 +5,7 @@ import { apiService } from '../services/ApiService';
 export interface QaRequest {
   question: string;
   courseId: number;
+  courseName?: string;
 }
 
 export interface SourceInfo {
@@ -16,6 +17,7 @@ export interface SourceInfo {
   chunkIndex: number | null;
   relevanceScore: number | null;
   excerpt: string | null;
+  url: string | null;
 }
 
 export interface QaResponse {
@@ -51,11 +53,12 @@ export class QaApiService {
   // Use 120 second timeout for chat operations
   private readonly QA_TIMEOUT = 120000; // 120 seconds
 
-  async askQuestion(question: string, courseId: number): Promise<QaResponse> {
+  async askQuestion(question: string, courseId: number, courseName?: string): Promise<QaResponse> {
     try {
       const request: QaRequest = {
         question,
-        courseId
+        courseId,
+        ...(courseName ? { courseName } : {})
       };
 
       const response = await apiService.post<ApiResponse<QaResponse>>(

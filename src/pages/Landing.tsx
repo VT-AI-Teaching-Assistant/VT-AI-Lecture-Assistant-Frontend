@@ -91,8 +91,8 @@ function Landing() {
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <div className="leading-none">
-              <span className={`text-lg font-bold tracking-tight transition-colors ${scrolled ? 'text-gray-900' : 'text-white'}`}>HokieLearn</span>
-              <span className={`text-lg font-bold tracking-tight ml-0.5 transition-colors ${scrolled ? 'text-maroon' : 'text-orange'}`}>AI</span>
+              <span className={`text-lg font-bold tracking-tight transition-colors ${scrolled ? 'text-gray-900' : 'text-white'}`}><Link to="/">AiLearn</Link></span>
+              <span className={`text-lg font-bold tracking-tight ml-0.5 transition-colors ${scrolled ? 'text-maroon' : 'text-orange'}`}>TA</span>
             </div>
           </Link>
 
@@ -171,7 +171,7 @@ function Landing() {
             </h1>
 
             <p className="opacity-0 animate-rise-d2 text-base md:text-lg text-white/75 max-w-lg mx-auto lg:mx-0 mb-8 leading-relaxed">
-              HokieLearn AI helps students instantly understand lectures, ask questions,
+              AiLearn TA helps students instantly understand lectures, ask questions,
               and get AI-powered clarifications, built exclusively for Virginia Tech.
             </p>
 
@@ -214,7 +214,7 @@ function Landing() {
                   <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
                   <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
                   <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-                  <span className="ml-3 text-xs text-gray-400 font-medium">HokieLearn AI Chat</span>
+                  <span className="ml-3 text-xs text-gray-400 font-medium">AiLearn TA Chat</span>
                 </div>
 
                 <div className="p-5 space-y-4">
@@ -285,7 +285,7 @@ function Landing() {
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-maroon to-maroon-dark flex items-center justify-center">
                   <GraduationCap className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-lg font-bold tracking-tight">HokieLearn AI</span>
+                <span className="text-lg font-bold tracking-tight">AiLearn TA</span>
               </div>
               <p className="text-sm text-gray-500 leading-relaxed">
                 AI-powered teaching assistant built for Virginia Tech students by the CISL Lab, Department of Computer Science.
@@ -320,7 +320,7 @@ function Landing() {
           </div>
 
           <div className="border-t border-gray-800/60 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-gray-600">&copy; {new Date().getFullYear()} HokieLearn AI. Virginia Tech.</p>
+            <p className="text-xs text-gray-600">&copy; {new Date().getFullYear()} AiLearn TA. Virginia Tech.</p>
             <p className="text-xs text-gray-600">Built with pride at the CISL Lab, Dept. of Computer Science</p>
           </div>
         </div>
@@ -369,7 +369,7 @@ function FeaturesSection() {
     {
       icon: <BookOpen className="w-5 h-5" />,
       title: 'All VT Disciplines',
-      desc: 'From CS and engineering to business and humanities, HokieLearn adapts to your coursework.',
+      desc: 'From CS and engineering to business and humanities, AiLearn adapts to your coursework.',
       accent: 'orange',
     },
   ];
@@ -445,7 +445,7 @@ function AboutSection() {
             Built <span className="italic">Exclusively</span> for<br className="hidden md:block" /> Virginia Tech
           </h2>
           <p className="text-white/60 max-w-2xl mx-auto leading-relaxed">
-            Whether you're tackling advanced engineering problems, debugging code, solving complex math, or studying business case studies, HokieLearn AI understands your coursework and adapts to how you learn.
+            Whether you're tackling advanced engineering problems, debugging code, solving complex math, or studying business case studies, AiLearn TA understands your coursework and adapts to how you learn.
           </p>
         </div>
 
@@ -485,7 +485,7 @@ function TestimonialsSection() {
     {
       name: 'Sarthak',
       role: 'Computer Science, Class of 2025',
-      quote: 'HokieLearn AI has completely changed how I study. Instead of rewatching entire lectures, I can ask specific questions and get instant answers with timestamps. It\'s like having a TA available 24/7.',
+      quote: 'AiLearn TA has completely changed how I study. Instead of rewatching entire lectures, I can ask specific questions and get instant answers with timestamps. It\'s like having a TA available 24/7.',
     },
     {
       name: 'Jyothi',

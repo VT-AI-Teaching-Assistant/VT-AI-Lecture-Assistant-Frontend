@@ -14,11 +14,16 @@ RUN npm ci
 COPY . .
 
 # Build arguments for environment variables (baked into build)
-ARG REACT_APP_API_BASE_URL=/api
+ARG REACT_APP_API_BASE_URL=https://aita.cisl.cs.vt.edu/api
+#http://localhost:3167/api
 ARG REACT_APP_API_TIMEOUT=30000
 ARG REACT_APP_OAUTH_SERVER_URL=https://mock-canvas-oauth-ts.vercel.app
+#http://localhost:8457
+#https://mock-canvas-oauth-ts.vercel.app
 ARG REACT_APP_OAUTH_CLIENT_ID=vt-ai-lecture-assistant
 ARG REACT_APP_OAUTH_REDIRECT_URI=https://aita.cisl.cs.vt.edu/auth/callback
+
+#http://localhost:3000/auth/callback
 
 # Set environment variables for build
 ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
