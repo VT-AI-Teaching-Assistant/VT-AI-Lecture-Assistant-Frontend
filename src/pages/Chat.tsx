@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
-import { qaApiService, SourceInfo } from '../api/qa';
+import { qaApiService, QaStreamError, SourceInfo } from '../api/qa';
 import { formatMarkdown } from '../utils/markdownFormatter';
+
+// Stream answers as they're generated (POST /qa/ask/stream). Off unless set to "true".
+const QA_STREAMING = process.env.REACT_APP_QA_STREAMING === 'true';
 
 type ChatMessage = {
   id: number;
@@ -55,17 +58,30 @@ const Chat = () => {
   const [inputValue, setInputValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
+  // Id of the AI message currently being streamed in, if any
+  const [streamingId, setStreamingId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const renderFrameRef = useRef<number | null>(null);
   const { selectedCourse } = useCourse();
 
   const scrollToBottom = (): void => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Smooth scrolling on every streamed chunk stutters; jump instead while streaming
+    messagesEndRef.current?.scrollIntoView({ behavior: streamingId !== null ? 'auto' : 'smooth' });
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Stop any in-flight stream when leaving the page
+  useEffect(() => () => {
+    streamAbortRef.current?.abort();
+    if (renderFrameRef.current !== null) {
+      cancelAnimationFrame(renderFrameRef.current);
+    }
+  }, []);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -116,6 +132,100 @@ const Chat = () => {
     }
   };
 
+  /**
+   * Streamed variant of getAIResponse: shows the answer as it's generated.
+   * If the stream fails before any text arrives, falls back to getAIResponse.
+   */
+  const getStreamedAIResponse = async (userMessage: string): Promise<void> => {
+    if (!selectedCourse) {
+      // getAIResponse shows the "select a course" message
+      return getAIResponse(userMessage);
+    }
+
+    setIsLoading(true);
+    // The user's message was just given id Date.now(), usually in this same millisecond;
+    // +1 keeps the ids distinct so updates to this message can't overwrite it.
+    const id = Date.now() + 1;
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let text = '';
+    let sources: SourceInfo[] | null = null;
+    let shown = false;
+
+    // Re-render at most once per animation frame, however fast chunks arrive
+    const render = () => {
+      renderFrameRef.current = null;
+      const message: ChatMessage = { id, text, isUser: false, timestamp, sources };
+      if (!shown) {
+        shown = true;
+        setStreamingId(id);
+        setMessages((prev) => [...prev, message]);
+      } else {
+        setMessages((prev) => prev.map((m) => (m.id === id ? message : m)));
+      }
+    };
+    const scheduleRender = () => {
+      if (renderFrameRef.current === null) {
+        renderFrameRef.current = requestAnimationFrame(render);
+      }
+    };
+    const renderNow = () => {
+      if (renderFrameRef.current !== null) {
+        cancelAnimationFrame(renderFrameRef.current);
+      }
+      render();
+    };
+
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+
+    try {
+      await qaApiService.askQuestionStream(
+        userMessage,
+        selectedCourse.course_id,
+        selectedCourse.title || undefined,
+        {
+          onMeta: (meta) => {
+            sources = meta.sources.length > 0 ? meta.sources : null;
+            if (shown) scheduleRender();
+          },
+          onDelta: (chunk) => {
+            text += chunk;
+            scheduleRender();
+          },
+          onError: (message) => {
+            // Don't cite sources for an answer that failed
+            sources = null;
+            text = text ? `${text}\n\n*${message}*` : message;
+          },
+        },
+        controller.signal
+      );
+      if (!text) {
+        text = 'Sorry, I encountered an error. Please try again.';
+      }
+      renderNow();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return; // left the page
+      }
+      if (!shown && !(error instanceof QaStreamError && error.textReceived)) {
+        console.warn('Streaming failed before any text arrived; retrying without streaming:', error);
+        await getAIResponse(userMessage);
+        return;
+      }
+      console.error('QA stream error:', error);
+      sources = null;
+      text += '\n\n*The answer was cut off. Please try again.*';
+      renderNow();
+    } finally {
+      if (streamAbortRef.current === controller) {
+        streamAbortRef.current = null;
+      }
+      setStreamingId(null);
+      setIsLoading(false);
+    }
+  };
+
   const toggleSources = (messageId: number) => {
     setExpandedSources(prev => {
       const next = new Set(prev);
@@ -153,7 +263,7 @@ const Chat = () => {
     setMessages((prev) => [...prev, userMessage]);
     const query = inputValue.trim();
     setInputValue('');
-    await getAIResponse(query);
+    await (QA_STREAMING ? getStreamedAIResponse(query) : getAIResponse(query));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
@@ -321,8 +431,8 @@ const Chat = () => {
                 </div>
               ))}
 
-              {/* Loading State */}
-              {isLoading && (
+              {/* Loading State (until a streamed answer starts showing) */}
+              {isLoading && streamingId === null && (
                 <div className="flex gap-4 animate-fadeIn">
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#630031] to-[#8a1145] flex items-center justify-center shadow-md">
                     <SparkleIcon className="w-4 h-4 text-white animate-pulse" />

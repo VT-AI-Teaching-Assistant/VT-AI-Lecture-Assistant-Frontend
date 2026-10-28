@@ -25,12 +25,17 @@ ARG REACT_APP_OAUTH_REDIRECT_URI=https://aita.cisl.cs.vt.edu/auth/callback
 
 #http://localhost:3000/auth/callback
 
+# Stream chat answers as they're generated (POST /api/qa/ask/stream); on by default.
+# Needs the backend's /api/qa/ask/stream deployed. "false" turns it off.
+ARG REACT_APP_QA_STREAMING=true
+
 # Set environment variables for build
 ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
 ENV REACT_APP_API_TIMEOUT=$REACT_APP_API_TIMEOUT
 ENV REACT_APP_OAUTH_SERVER_URL=$REACT_APP_OAUTH_SERVER_URL
 ENV REACT_APP_OAUTH_CLIENT_ID=$REACT_APP_OAUTH_CLIENT_ID
 ENV REACT_APP_OAUTH_REDIRECT_URI=$REACT_APP_OAUTH_REDIRECT_URI
+ENV REACT_APP_QA_STREAMING=$REACT_APP_QA_STREAMING
 
 # Build the application
 RUN npm run build
