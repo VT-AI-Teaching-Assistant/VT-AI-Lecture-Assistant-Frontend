@@ -123,6 +123,27 @@ export class ApiService {
     return this.token;
   }
 
+  /** Base URL, for requests that can't go through axios (e.g. streaming with fetch). */
+  getBaseURL(): string {
+    return this.client.defaults.baseURL || '';
+  }
+
+  /**
+   * Refresh the access token for callers outside axios (e.g. fetch streams) and return it.
+   * Ends the session the same way the 401 interceptor does if the refresh is rejected.
+   */
+  async refreshAccessToken(): Promise<string | null> {
+    try {
+      await this.refreshToken();
+      return this.token;
+    } catch (refreshError: any) {
+      if (refreshError?.response) {
+        this.handleSessionExpired();
+      }
+      throw refreshError;
+    }
+  }
+
   clearToken(): void {
     this.token = null;
     // Stop activity monitoring

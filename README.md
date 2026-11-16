@@ -52,6 +52,7 @@ React + TypeScript frontend for the Virginia Tech AI Lecture Assistant. It provi
    - `REACT_APP_OAUTH_SERVER_URL` – Canvas OAuth server URL (e.g. `https://canvas.vt.edu` or mock server for dev).
    - `REACT_APP_OAUTH_CLIENT_ID` – OAuth client ID.
    - `REACT_APP_OAUTH_REDIRECT_URI` – OAuth redirect URI (e.g. `http://localhost:3000/auth/callback` for local dev).
+   - `REACT_APP_QA_STREAMING` – Set to `true` to show chat answers as they're generated (`POST /api/qa/ask/stream`, Server-Sent Events read with `fetch`). Off by default. If the request fails before any text arrives, the chat retries with the regular `POST /api/qa/ask`; an answer that errors or is cut off mid-stream keeps its partial text with a note, without sources.
 
 3. **Start development server**
    ```bash
@@ -109,7 +110,7 @@ Multi-stage build: Node 18 Alpine for build, nginx Alpine for serving.
 - Build: `docker build -t vt-ai-frontend .`
 - Run: e.g. `docker run -p 80:80 vt-ai-frontend`
 
-Build args (defaults in Dockerfile): `REACT_APP_API_BASE_URL`, `REACT_APP_API_TIMEOUT`, `REACT_APP_OAUTH_SERVER_URL`, `REACT_APP_OAUTH_CLIENT_ID`, `REACT_APP_OAUTH_REDIRECT_URI`. Override with `--build-arg` when building for different environments.
+Build args (defaults in Dockerfile): `REACT_APP_API_BASE_URL`, `REACT_APP_API_TIMEOUT`, `REACT_APP_OAUTH_SERVER_URL`, `REACT_APP_OAUTH_CLIENT_ID`, `REACT_APP_OAUTH_REDIRECT_URI`, `REACT_APP_QA_STREAMING` (default `true` in Docker builds, which needs the backend's `/api/qa/ask/stream` deployed; `--build-arg REACT_APP_QA_STREAMING=false` turns streaming off). Override with `--build-arg` when building for different environments.
 
 ## Deployment
 
